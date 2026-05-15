@@ -406,7 +406,6 @@ body { font-family: var(--font-body); background: var(--bg); color: var(--text);
 <div class="error-toast" id="errorToast"></div>
 
 <script>
-let SID = localStorage.getItem('pp_sid');
 let DAYS = 28;
 let charts = {};
 let cachedData = {};
@@ -460,10 +459,9 @@ async function startLogin() {
   const res=await fetch('/auth/login'); const {url}=await res.json(); window.location.href=url;
 }
 async function checkSession() {
-  if(!SID) return false;
-  const res=await fetch('/auth/me',{headers:{'x-session-id':SID}});
+  const res=await fetch('/auth/me',{credentials:'include'});
   const data=await res.json();
-  if(!data.authenticated){SID=null;localStorage.removeItem('pp_sid');return false;}
+  if(!data.authenticated) return false;
   setUserUI(data.user); return true;
 }
 function setUserUI(user) {
@@ -478,16 +476,16 @@ function setUserUI(user) {
   document.getElementById('userName').textContent=user.email||user.name;
 }
 async function logout() {
-  await fetch('/auth/logout',{method:'POST',headers:{'x-session-id':SID}});
-  SID=null; localStorage.removeItem('pp_sid'); location.reload();
+  await fetch('/auth/logout',{method:'POST',credentials:'include'});
+  location.reload();
 }
 
 async function ga4(body) {
-  const r=await fetch('/api/ga4',{method:'POST',headers:{'Content-Type':'application/json','x-session-id':SID},body:JSON.stringify(body)});
+  const r=await fetch('/api/ga4',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(body)});
   const d=await r.json(); if(!r.ok) throw new Error(d.error||'GA4 error'); return d;
 }
 async function gsc(body) {
-  const r=await fetch('/api/gsc',{method:'POST',headers:{'Content-Type':'application/json','x-session-id':SID},body:JSON.stringify(body)});
+  const r=await fetch('/api/gsc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(body)});
   const d=await r.json(); if(!r.ok) throw new Error(d.error||'GSC error'); return d;
 }
 
@@ -724,10 +722,9 @@ function renderSection(name) {
 
 (async()=>{
   const params=new URLSearchParams(window.location.search);
-  const sid=params.get('sid'),err=params.get('error');
+  const err=params.get('error');
   if(err){showError('Auth error: '+err);history.replaceState(null,'','/');}
-  if(sid){SID=sid;localStorage.setItem('pp_sid',sid);history.replaceState(null,'','/');}
-  if(SID&&await checkSession()){document.getElementById('loginState').style.display='none';loadData();}
+  if(await checkSession()){document.getElementById('loginState').style.display='none';loadData();}
 })();
 </script>
 </body>
