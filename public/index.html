@@ -275,6 +275,11 @@ body { font-family: var(--font-body); background: var(--bg); color: var(--text);
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="1" width="12" height="14" rx="1.5"/><line x1="5" y1="5" x2="11" y2="5"/><line x1="5" y1="8" x2="11" y2="8"/><line x1="5" y1="11" x2="8" y2="11"/></svg>
       Top Pages
     </button>
+    <button class="nav-item" onclick="showSection('conversions',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1l2 4 4.5.7-3.2 3.1.7 4.5L8 11.5l-4 2.1.7-4.5L1.5 5.7 6 5z"/></svg>
+      Conversions
+      <span class="nav-badge" id="nb-conversions">–</span>
+    </button>
   </nav>
   <div class="sidebar-footer">
     <div style="padding:8px 10px">
@@ -460,6 +465,59 @@ body { font-family: var(--font-body); background: var(--bg); color: var(--text);
           <table class="data-table"><thead><tr><th>#</th><th>Page</th><th>Sessions</th><th>Users</th><th>Bounce Rate</th><th>Avg. Duration</th></tr></thead><tbody id="pagesBody"></tbody></table>
         </div>
       </div>
+
+      <!-- CONVERSIONS -->
+      <div id="sec-conversions" style="display:none">
+        <div class="section-header" style="margin-bottom:12px"><div><div class="section-title">GA4 Conversion Events</div><div class="section-sub">Form fills, calls and texts tracked via GA4</div></div><span class="pill pill-green">GA4</span></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem" id="convKpiGrid"></div>
+        <div class="chart-row-2" style="margin-bottom:1.5rem">
+          <div class="chart-card">
+            <div class="section-header"><div><div class="section-title">Calls Over Time</div><div class="section-sub">Unique + repeat phone calls daily</div></div><span class="pill pill-green">GA4</span></div>
+            <div class="legend-row">
+              <div class="legend-item"><div class="legend-swatch" style="background:var(--green)"></div>Unique Calls</div>
+              <div class="legend-item"><div class="legend-swatch" style="background:var(--blue)"></div>Repeat Calls</div>
+            </div>
+            <div style="position:relative;height:200px"><canvas id="callsChart" role="img" aria-label="Calls over time">Calls trend.</canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="section-header"><div><div class="section-title">Form Fills Over Time</div><div class="section-sub">Web forms and lead form submissions</div></div><span class="pill pill-green">GA4</span></div>
+            <div class="legend-row">
+              <div class="legend-item"><div class="legend-swatch" style="background:var(--purple)"></div>Form Submits</div>
+              <div class="legend-item"><div class="legend-swatch" style="background:var(--amber)"></div>Unique Web Forms</div>
+            </div>
+            <div style="position:relative;height:200px"><canvas id="formsChart" role="img" aria-label="Forms over time">Forms trend.</canvas></div>
+          </div>
+        </div>
+        <div class="chart-row-2" style="margin-bottom:1.5rem">
+          <div class="chart-card">
+            <div class="section-header"><div><div class="section-title">Conversion Breakdown</div><div class="section-sub">Share by conversion type</div></div><span class="pill pill-green">GA4</span></div>
+            <div id="convBreakdownLegend" class="legend-row" style="margin-bottom:8px"></div>
+            <div style="position:relative;height:190px"><canvas id="convBreakdownChart" role="img" aria-label="Conversion breakdown">Breakdown.</canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="section-header"><div><div class="section-title">Text Messages</div><div class="section-sub">Unique + repeat texts daily</div></div><span class="pill pill-green">GA4</span></div>
+            <div class="legend-row">
+              <div class="legend-item"><div class="legend-swatch" style="background:var(--amber)"></div>Unique Texts</div>
+              <div class="legend-item"><div class="legend-swatch" style="background:var(--purple)"></div>Repeat Texts</div>
+            </div>
+            <div style="position:relative;height:190px"><canvas id="textsChart" role="img" aria-label="Texts over time">Texts trend.</canvas></div>
+          </div>
+        </div>
+        <div style="height:1px;background:var(--border);margin:0.25rem 0 1.5rem"></div>
+        <div class="section-header" style="margin-bottom:12px"><div><div class="section-title">WhatConverts Lead Intelligence</div><div class="section-sub">Calls, forms and chats tracked via WhatConverts</div></div><span class="pill" style="background:rgba(245,158,11,0.12);color:var(--amber)">WhatConverts</span></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem" id="wcKpiGrid"></div>
+        <div class="chart-card" style="margin-bottom:1.5rem">
+          <div class="section-header">
+            <div><div class="section-title">Recent Leads</div><div class="section-sub">Latest leads from WhatConverts</div></div>
+            <span class="pill" style="background:rgba(245,158,11,0.12);color:var(--amber)">WhatConverts</span>
+          </div>
+          <table class="data-table">
+            <thead><tr><th>#</th><th>Date</th><th>Type</th><th>Source</th><th>Medium</th><th>Phone / Page</th><th>Status</th></tr></thead>
+            <tbody id="wcLeadsBody"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--muted)">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -668,6 +726,19 @@ function drawSparkline(canvasId, data, color) {
   }, 80);
 }
 
+async function loadWhatConverts(start, end) {
+  try {
+    const [summary, leads] = await Promise.all([
+      fetch(`/api/whatconverts/summary?start_date=${start}&end_date=${end}`).then(r=>r.json()),
+      fetch(`/api/whatconverts?start_date=${start}&end_date=${end}&per_page=25`).then(r=>r.json())
+    ]);
+    return { summary, leads };
+  } catch(e) {
+    console.error('WhatConverts error:', e);
+    return { summary: { total: 0, calls: 0 }, leads: { leads: [] } };
+  }
+}
+
 async function loadData() {
   document.getElementById('dashboardWrap').style.display='none';
   document.getElementById('loadingState').style.display='flex';
@@ -687,8 +758,45 @@ async function loadData() {
       gsc({startDate:start,endDate:end,type:'web',dimensions:['date']}),
       gsc({startDate:start,endDate:end,type:'web',dimensions:['query'],rowLimit:20})
     ]);
+    document.getElementById('loadingText').textContent='Fetching conversions…';
+    // Load GA4 conversion events
+    const [convEvents, callsTs, formsTs, textsTs] = await Promise.all([
+      // Total counts per event
+      fetch('/api/ga4', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        dateRanges:[{startDate:start,endDate:end}],
+        dimensions:[{name:'eventName'}],
+        metrics:[{name:'eventCount'}],
+        dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['phone_call_unique','phone_call_repeat','web_form_unique','web_form_repeat','form_submit','text_message_unique','text_message_repeat','ads_conversion_SUBMIT_LEAD_FORM_1']}}}
+      })}).then(r=>r.json()),
+      // Calls over time
+      fetch('/api/ga4', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        dateRanges:[{startDate:start,endDate:end}],
+        dimensions:[{name:'date'},{name:'eventName'}],
+        metrics:[{name:'eventCount'}],
+        dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['phone_call_unique','phone_call_repeat']}}},
+        orderBys:[{dimension:{dimensionName:'date'}}]
+      })}).then(r=>r.json()),
+      // Forms over time
+      fetch('/api/ga4', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        dateRanges:[{startDate:start,endDate:end}],
+        dimensions:[{name:'date'},{name:'eventName'}],
+        metrics:[{name:'eventCount'}],
+        dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['web_form_unique','form_submit','ads_conversion_SUBMIT_LEAD_FORM_1']}}},
+        orderBys:[{dimension:{dimensionName:'date'}}]
+      })}).then(r=>r.json()),
+      // Texts over time
+      fetch('/api/ga4', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        dateRanges:[{startDate:start,endDate:end}],
+        dimensions:[{name:'date'},{name:'eventName'}],
+        metrics:[{name:'eventCount'}],
+        dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['text_message_unique','text_message_repeat']}}},
+        orderBys:[{dimension:{dimensionName:'date'}}]
+      })}).then(r=>r.json())
+    ]);
+    const wcData = await loadWhatConverts(start, end);
+
     document.getElementById('loadingText').textContent='Rendering…';
-    cachedData={cur,prev,ts,srcs,pages,devices,newUsers,bounceTs,gscSum,gscTs,gscQ,start,end};
+    cachedData={cur,prev,ts,srcs,pages,devices,newUsers,bounceTs,gscSum,gscTs,gscQ,convEvents,callsTs,formsTs,textsTs,wcData,start,end};
     renderKPIs(); renderSection(currentSection);
     document.getElementById('loadingState').style.display='none';
     document.getElementById('dashboardWrap').style.display='block';
@@ -856,6 +964,158 @@ function renderSection(name) {
         <td style="font-family:var(--font-mono);color:var(--muted2)">${dur}</td>
       </tr>`;
     }).join('')||'<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--muted)">No data</td></tr>';
+  }
+
+  if(name==='conversions') {
+    const {convEvents,callsTs,formsTs,textsTs,wcData}=cachedData;
+
+    // Parse GA4 conversion event totals
+    const evMap={};
+    (convEvents.rows||[]).forEach(r=>{
+      evMap[r.dimensionValues[0].value]=parseInt(r.metricValues[0].value)||0;
+    });
+    const totalCalls=(evMap.phone_call_unique||0)+(evMap.phone_call_repeat||0);
+    const totalForms=(evMap.web_form_unique||0)+(evMap.web_form_repeat||0)+(evMap.form_submit||0)+(evMap['ads_conversion_SUBMIT_LEAD_FORM_1']||0);
+    const totalTexts=(evMap.text_message_unique||0)+(evMap.text_message_repeat||0);
+    const totalConvs=totalCalls+totalForms+totalTexts;
+    document.getElementById('nb-conversions').textContent=fmt(totalConvs);
+
+    // KPI cards
+    const convKpis=[
+      {label:'Total Conversions',value:fmt(totalConvs),color:'var(--green)',icon:'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'},
+      {label:'Phone Calls',value:fmt(totalCalls),sub:`${evMap.phone_call_unique||0} unique · ${evMap.phone_call_repeat||0} repeat`,color:'var(--blue)',icon:'M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z'},
+      {label:'Form Fills',value:fmt(totalForms),sub:`${evMap.web_form_unique||0} unique · ${evMap.form_submit||0} submits`,color:'var(--purple)',icon:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'},
+      {label:'Text Messages',value:fmt(totalTexts),sub:`${evMap.text_message_unique||0} unique · ${evMap.text_message_repeat||0} repeat`,color:'var(--amber)',icon:'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z'}
+    ];
+    document.getElementById('convKpiGrid').innerHTML=convKpis.map(k=>`
+      <div class="chart-card" style="padding:1.1rem;animation:fadeUp 0.3s ease both">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:10.5px;font-family:var(--font-mono);color:var(--muted);text-transform:uppercase;letter-spacing:0.06em">${k.label}</div>
+          <div style="width:28px;height:28px;border-radius:7px;background:${k.color}1a;display:flex;align-items:center;justify-content:center">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${k.color}" stroke-width="1.8"><path d="${k.icon}"/></svg>
+          </div>
+        </div>
+        <div style="font-family:var(--font-display);font-size:28px;font-weight:600;letter-spacing:-0.3px;color:${k.color};margin-bottom:4px">${k.value}</div>
+        <div style="font-size:11px;color:var(--muted);font-family:var(--font-mono)">${k.sub||''}</div>
+      </div>`).join('');
+
+    // Build daily date labels from callsTs
+    const allDates=[...new Set((callsTs.rows||[]).map(r=>r.dimensionValues[0].value))].sort();
+    const dateLabels=allDates.map(d=>d.slice(4,6)+'/'+d.slice(6,8));
+
+    // Calls chart
+    const uniqueCallsData=allDates.map(d=>{
+      const row=(callsTs.rows||[]).find(r=>r.dimensionValues[0].value===d&&r.dimensionValues[1].value==='phone_call_unique');
+      return row?parseInt(row.metricValues[0].value):0;
+    });
+    const repeatCallsData=allDates.map(d=>{
+      const row=(callsTs.rows||[]).find(r=>r.dimensionValues[0].value===d&&r.dimensionValues[1].value==='phone_call_repeat');
+      return row?parseInt(row.metricValues[0].value):0;
+    });
+    if(charts.callsChart) charts.callsChart.destroy();
+    charts.callsChart=new Chart(document.getElementById('callsChart'),{
+      type:'bar',
+      data:{labels:dateLabels,datasets:[
+        {label:'Unique Calls',data:uniqueCallsData,backgroundColor:'rgba(58,143,212,0.7)',borderRadius:3,stack:'calls'},
+        {label:'Repeat Calls',data:repeatCallsData,backgroundColor:'rgba(77,159,255,0.4)',borderRadius:3,stack:'calls'}
+      ]},
+      options:{...JSON.parse(JSON.stringify(chartBase)),scales:{x:{...chartBase.scales.x,stacked:true,grid:{display:false}},y:{...chartBase.scales.y,stacked:true,ticks:{...chartBase.scales.y.ticks,callback:v=>Math.round(v)}}}}
+    });
+
+    // Forms chart
+    const allFormDates=[...new Set((formsTs.rows||[]).map(r=>r.dimensionValues[0].value))].sort();
+    const formLabels=allFormDates.map(d=>d.slice(4,6)+'/'+d.slice(6,8));
+    const formSubmitData=allFormDates.map(d=>{
+      const row=(formsTs.rows||[]).find(r=>r.dimensionValues[0].value===d&&r.dimensionValues[1].value==='form_submit');
+      return row?parseInt(row.metricValues[0].value):0;
+    });
+    const webFormData=allFormDates.map(d=>{
+      const row=(formsTs.rows||[]).find(r=>r.dimensionValues[0].value===d&&(r.dimensionValues[1].value==='web_form_unique'||r.dimensionValues[1].value==='ads_conversion_SUBMIT_LEAD_FORM_1'));
+      return row?parseInt(row.metricValues[0].value):0;
+    });
+    if(charts.formsChart) charts.formsChart.destroy();
+    charts.formsChart=new Chart(document.getElementById('formsChart'),{
+      type:'bar',
+      data:{labels:formLabels,datasets:[
+        {label:'Form Submits',data:formSubmitData,backgroundColor:'rgba(167,139,250,0.7)',borderRadius:3,stack:'forms'},
+        {label:'Unique Web Forms',data:webFormData,backgroundColor:'rgba(245,158,11,0.5)',borderRadius:3,stack:'forms'}
+      ]},
+      options:{...JSON.parse(JSON.stringify(chartBase)),scales:{x:{...chartBase.scales.x,stacked:true,grid:{display:false}},y:{...chartBase.scales.y,stacked:true,ticks:{...chartBase.scales.y.ticks,callback:v=>Math.round(v)}}}}
+    });
+
+    // Texts chart
+    const allTextDates=[...new Set((textsTs.rows||[]).map(r=>r.dimensionValues[0].value))].sort();
+    const textLabels=allTextDates.map(d=>d.slice(4,6)+'/'+d.slice(6,8));
+    const uniqTextData=allTextDates.map(d=>{
+      const row=(textsTs.rows||[]).find(r=>r.dimensionValues[0].value===d&&r.dimensionValues[1].value==='text_message_unique');
+      return row?parseInt(row.metricValues[0].value):0;
+    });
+    const repTextData=allTextDates.map(d=>{
+      const row=(textsTs.rows||[]).find(r=>r.dimensionValues[0].value===d&&r.dimensionValues[1].value==='text_message_repeat');
+      return row?parseInt(row.metricValues[0].value):0;
+    });
+    if(charts.textsChart) charts.textsChart.destroy();
+    charts.textsChart=new Chart(document.getElementById('textsChart'),{
+      type:'bar',
+      data:{labels:textLabels,datasets:[
+        {label:'Unique Texts',data:uniqTextData,backgroundColor:'rgba(245,158,11,0.7)',borderRadius:3,stack:'texts'},
+        {label:'Repeat Texts',data:repTextData,backgroundColor:'rgba(167,139,250,0.5)',borderRadius:3,stack:'texts'}
+      ]},
+      options:{...JSON.parse(JSON.stringify(chartBase)),scales:{x:{...chartBase.scales.x,stacked:true,grid:{display:false}},y:{...chartBase.scales.y,stacked:true,ticks:{...chartBase.scales.y.ticks,callback:v=>Math.round(v)}}}}
+    });
+
+    // Breakdown donut
+    const bdLabels=['Phone Calls','Form Fills','Text Messages'];
+    const bdData=[totalCalls,totalForms,totalTexts];
+    const bdColors=['#3a8fd4','#a78bfa','#f59e0b'];
+    document.getElementById('convBreakdownLegend').innerHTML=bdLabels.map((l,i)=>`
+      <div class="legend-item"><div class="legend-swatch" style="background:${bdColors[i]}"></div>${l}: <strong style="color:var(--text);margin-left:3px">${bdData[i]}</strong></div>`).join('');
+    if(charts.convBreakdownChart) charts.convBreakdownChart.destroy();
+    charts.convBreakdownChart=new Chart(document.getElementById('convBreakdownChart'),{
+      type:'doughnut',
+      data:{labels:bdLabels,datasets:[{data:bdData,backgroundColor:bdColors,borderWidth:0,hoverOffset:6}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{display:false},tooltip:{backgroundColor:'#1e2128',borderColor:'rgba(255,255,255,0.08)',borderWidth:1,titleColor:'#f0ede8',bodyColor:'#9ca3af',padding:10}}}
+    });
+
+    // WhatConverts KPIs
+    const wc=wcData.summary||{};
+    const wcTotal=wc.total||0;
+    const wcCalls=wc.calls||0;
+    const wcForms=wcTotal-wcCalls;
+    const wcKpis=[
+      {label:'Total WC Leads',value:fmt(wcTotal),color:'var(--amber)'},
+      {label:'Phone Calls',value:fmt(wcCalls),color:'var(--blue)'},
+      {label:'Form Leads',value:fmt(wcForms>0?wcForms:0),color:'var(--purple)'},
+      {label:'Profile',value:'#148479',color:'var(--muted2)'}
+    ];
+    document.getElementById('wcKpiGrid').innerHTML=wcKpis.map(k=>`
+      <div class="chart-card" style="padding:1.1rem;animation:fadeUp 0.3s ease both">
+        <div style="font-size:10.5px;font-family:var(--font-mono);color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px">${k.label}</div>
+        <div style="font-family:var(--font-display);font-size:26px;font-weight:600;letter-spacing:-0.3px;color:${k.color}">${k.value}</div>
+      </div>`).join('');
+
+    // WhatConverts leads table
+    const leads=(wcData.leads?.leads||[]);
+    document.getElementById('wcLeadsBody').innerHTML=leads.length?leads.map((lead,i)=>{
+      const date=lead.date_created?(new Date(lead.date_created)).toLocaleDateString():'–';
+      const type=lead.lead_type||'–';
+      const source=lead.traffic_source||lead.source||'–';
+      const medium=lead.traffic_medium||lead.medium||'–';
+      const phone=lead.phone_number||lead.caller_number||'–';
+      const page=lead.landing_page_url?lead.landing_page_url.replace(/https?:\/\/[^/]+/,'').slice(0,30)||'/':'–';
+      const status=lead.status||'new';
+      const statusColor=status==='good'?'var(--green)':status==='bad'?'var(--red)':'var(--muted2)';
+      const typeIcon=type.includes('phone')||type.includes('call')?'📞':type.includes('form')?'📋':type.includes('text')?'💬':'📌';
+      return `<tr>
+        <td><span class="rank-num">${i+1}</span></td>
+        <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted2)">${date}</td>
+        <td><span style="font-size:11px">${typeIcon}</span> <span style="font-size:12px;font-weight:500">${type}</span></td>
+        <td style="font-size:12px;color:var(--blue)">${source}</td>
+        <td style="font-size:12px;color:var(--muted2)">${medium}</td>
+        <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted2)" title="${phone}">${phone!=='–'?phone:page}</td>
+        <td><span style="font-size:11px;font-weight:600;color:${statusColor};text-transform:capitalize">${status}</span></td>
+      </tr>`;
+    }).join(''):'<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--muted)">No leads found for this date range</td></tr>';
   }
 }
 
