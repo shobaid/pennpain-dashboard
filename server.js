@@ -64,67 +64,71 @@ app.post('/api/gsc', async (req, res) => {
   }
 });
 
-// ── WhatConverts proxy ─────────────────────────────────────────────────────
+// ── WhatConverts proxy — single combined endpoint ──────────────────────────
+// Fetches leads + derives summary in one request to avoid rate limiting
 app.get('/api/whatconverts', async (req, res) => {
   try {
-    const { start_date, end_date, page = 1, per_page = 50 } = req.query;
+    const { start_date, end_date, per_page = 25, page = 1 } = req.query;
     const token = Buffer.from(
       `${process.env.WHATCONVERTS_TOKEN}:${process.env.WHATCONVERTS_SECRET}`
     ).toString('base64');
 
-    const response = await axios.get(
-      `https://app.whatconverts.com/api/v1/leads`,
-      {
-        headers: {
-          Authorization: `Basic ${token}`,
-          'Content-Type': 'application/json'
-        },
-        params: {
-          profile_id: WC_PROFILE,
-          start_date,
-          end_date,
-          page,
-          per_page
-        }
+    const response = await axios.get('https://app.whatconverts.com/api/v1/leads', {
+      headers: {
+        Authorization: `Basic ${token}`,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        profile_id: WC_PROFILE,
+        start_date,
+        end_date,
+        per_page,
+        page
       }
-    );
-    res.json(response.data);
-  } catch (e) {
-    const msg = e.response?.data?.message || e.response?.data?.error || e.message;
-    console.error('WhatConverts error:', msg, e.response?.status);
-    res.status(e.response?.status || 500).json({ error: msg });
-  }
-});
+    });
 
-// ── WhatConverts summary proxy ─────────────────────────────────────────────
-app.get('/api/whatconverts/summary', async (req, res) => {
-  try {
-    const { start_date, end_date } = req.query;
-    const token = Buffer.from(
-      `${process.env.WHATCONVERTS_TOKEN}:${process.env.WHATCONVERTS_SECRET}`
-    ).toString('base64');
+    const data = response.data;
+    const leads = data.leads || [];
 
-    // Fetch leads summary grouped by lead type
-    const [leadsRes, callsRes] = await Promise.all([
-      axios.get('https://app.whatconverts.com/api/v1/leads', {
-        headers: { Authorization: `Basic ${token}` },
-        params: { profile_id: WC_PROFILE, start_date, end_date, per_page: 1 }
-      }),
-      axios.get('https://app.whatconverts.com/api/v1/leads', {
-        headers: { Authorization: `Basic ${token}` },
-        params: { profile_id: WC_PROFILE, start_date, end_date, lead_type: 'phone_call', per_page: 1 }
-      })
-    ]);
+    // Derive summary counts from the returned leads + total
+    const callLeads = leads.filter(l =>
+      (l.lead_type || '').toLowerCase().includes('call') ||
+      (l.lead_type || '').toLowerCase().includes('phone')
+    ).length;
+
+    const formLeads = leads.filter(l =>
+      (l.lead_type || '').toLowerCase().includes('form') ||
+      (l.lead_type || '').toLowerCase().includes('web')
+    ).length;
+
+    const textLeads = leads.filter(l =>
+      (l.lead_type || '').toLowerCase().includes('text') ||
+      (l.lead_type || '').toLowerCase().includes('sms') ||
+      (l.lead_type || '').toLowerCase().includes('chat')
+    ).length;
 
     res.json({
-      total: leadsRes.data.total_leads || 0,
-      calls: callsRes.data.total_leads || 0,
-      leads_data: leadsRes.data
+      total_leads: data.total_leads || 0,
+      total_pages: data.total_pages || 1,
+      leads,
+      summary: {
+        total: data.total_leads || 0,
+        calls: callLeads,
+        forms: formLeads,
+        texts: textLeads
+      }
     });
   } catch (e) {
-    const msg = e.response?.data?.message || e.message;
-    console.error('WhatConverts summary error:', msg);
-    res.status(e.response?.status || 500).json({ error: msg });
+    const status = e.response?.status || 500;
+    const msg = e.response?.data?.message || e.response?.data?.error || e.message;
+    console.error('WhatConverts error:', status, msg);
+    // Return empty data instead of crashing so GA4 conversions still render
+    res.status(status).json({
+      error: msg,
+      total_leads: 0,
+      leads: [],
+      summary: { total: 0, calls: 0, forms: 0, texts: 0 }
+    });
   }
 });
 

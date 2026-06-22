@@ -728,14 +728,14 @@ function drawSparkline(canvasId, data, color) {
 
 async function loadWhatConverts(start, end) {
   try {
-    const [summary, leads] = await Promise.all([
-      fetch(`/api/whatconverts/summary?start_date=${start}&end_date=${end}`).then(r=>r.json()),
-      fetch(`/api/whatconverts?start_date=${start}&end_date=${end}&per_page=25`).then(r=>r.json())
-    ]);
-    return { summary, leads };
+    // Small delay to avoid rate limiting alongside GA4 calls
+    await new Promise(resolve => setTimeout(resolve, 600));
+    const res = await fetch(`/api/whatconverts?start_date=${start}&end_date=${end}&per_page=25`);
+    const data = await res.json();
+    return data;
   } catch(e) {
     console.error('WhatConverts error:', e);
-    return { summary: { total: 0, calls: 0 }, leads: { leads: [] } };
+    return { total_leads:0, leads:[], summary:{ total:0, calls:0, forms:0, texts:0 } };
   }
 }
 
@@ -766,7 +766,8 @@ async function loadData() {
         dateRanges:[{startDate:start,endDate:end}],
         dimensions:[{name:'eventName'}],
         metrics:[{name:'eventCount'}],
-        dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['phone_call_unique','phone_call_repeat','web_form_unique','web_form_repeat','form_submit','text_message_unique','text_message_repeat','ads_conversion_SUBMIT_LEAD_FORM_1']}}}
+        orderBys:[{metric:{metricName:'eventCount'},desc:true}],
+        limit: 50
       })}).then(r=>r.json()),
       // Calls over time
       fetch('/api/ga4', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
@@ -1079,14 +1080,15 @@ function renderSection(name) {
 
     // WhatConverts KPIs
     const wc=wcData.summary||{};
-    const wcTotal=wc.total||0;
+    const wcTotal=wc.total||wcData.total_leads||0;
     const wcCalls=wc.calls||0;
-    const wcForms=wcTotal-wcCalls;
+    const wcForms=wc.forms||0;
+    const wcTexts=wc.texts||0;
     const wcKpis=[
       {label:'Total WC Leads',value:fmt(wcTotal),color:'var(--amber)'},
       {label:'Phone Calls',value:fmt(wcCalls),color:'var(--blue)'},
-      {label:'Form Leads',value:fmt(wcForms>0?wcForms:0),color:'var(--purple)'},
-      {label:'Profile',value:'#148479',color:'var(--muted2)'}
+      {label:'Form Leads',value:fmt(wcForms),color:'var(--purple)'},
+      {label:'Text / Chat',value:fmt(wcTexts),color:'var(--green)'}
     ];
     document.getElementById('wcKpiGrid').innerHTML=wcKpis.map(k=>`
       <div class="chart-card" style="padding:1.1rem;animation:fadeUp 0.3s ease both">
@@ -1095,7 +1097,7 @@ function renderSection(name) {
       </div>`).join('');
 
     // WhatConverts leads table
-    const leads=(wcData.leads?.leads||[]);
+    const leads=(wcData.leads||[]);
     document.getElementById('wcLeadsBody').innerHTML=leads.length?leads.map((lead,i)=>{
       const date=lead.date_created?(new Date(lead.date_created)).toLocaleDateString():'–';
       const type=lead.lead_type||'–';
