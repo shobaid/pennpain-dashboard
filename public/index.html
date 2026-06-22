@@ -649,13 +649,13 @@ function deltaHTML(cur, prev, inverse) {
 
 function showSection(name, btn) {
   currentSection = name;
-  ['overview','traffic','search','pages'].forEach(s => {
+  ['overview','traffic','search','pages','conversions'].forEach(s => {
     const el=document.getElementById('sec-'+s);
     if(el) el.style.display=s===name?'block':'none';
   });
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
-  const titles={overview:'Dashboard',traffic:'Traffic',search:'Search Console',pages:'Top Pages'};
+  const titles={overview:'Dashboard',traffic:'Traffic',search:'Search Console',pages:'Top Pages',conversions:'Conversions'};
   document.getElementById('pageTitle').textContent=titles[name]||name;
   if(Object.keys(cachedData).length) renderSection(name);
 }
