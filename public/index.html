@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PennPain Analytics · Momentum Digital</title>
+<title>Penn Pain Physicians · Analytics by Momentum Digital</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
@@ -288,8 +288,17 @@ body { font-family: var(--font-body); background: var(--bg); color: var(--text);
   <header class="topbar">
     <div class="topbar-left">
       <div class="live-dot" id="liveDot" style="display:block"></div>
-      <div class="page-title" id="pageTitle">Dashboard</div>
-      <div style="font-size:11px;color:var(--muted);font-family:var(--font-mono)" id="updatedLine"></div>
+      <div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="page-title" id="pageTitle">Dashboard</div>
+          <div style="display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border2);border-radius:20px;padding:3px 10px 3px 6px">
+            <div style="width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,#c8102e,#003087);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:white;flex-shrink:0">PP</div>
+            <span style="font-size:11px;font-weight:600;color:var(--text)">PennPain</span>
+            <span style="font-size:10px;color:var(--muted);font-family:var(--font-mono)">· pennpain.com</span>
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);font-family:var(--font-mono);margin-top:2px" id="updatedLine"></div>
+      </div>
     </div>
     <div class="topbar-right">
       <div class="date-tabs" id="dateTabs">
@@ -345,6 +354,32 @@ body { font-family: var(--font-body); background: var(--bg); color: var(--text);
     <div id="dashboardWrap" style="display:none">
       <!-- OVERVIEW -->
       <div id="sec-overview">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;padding:1rem 1.25rem;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);animation:fadeUp 0.3s ease both">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#c8102e,#003087);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:white;flex-shrink:0;font-family:var(--font-display)">PP</div>
+            <div>
+              <div style="font-size:15px;font-weight:600;letter-spacing:-0.2px">Penn Pain Physicians</div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:3px">
+                <a href="https://pennpain.com" target="_blank" rel="noopener" style="font-size:11px;color:var(--green);font-family:var(--font-mono);text-decoration:none">pennpain.com</a>
+                <span style="color:var(--border2);font-size:10px">·</span>
+                <span style="font-size:11px;color:var(--muted);font-family:var(--font-mono)">GA4 · 486245473</span>
+                <span style="color:var(--border2);font-size:10px">·</span>
+                <span style="font-size:11px;color:var(--muted);font-family:var(--font-mono)">GSC · pennpain.com</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="text-align:right">
+              <div style="font-size:10px;color:var(--muted);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.06em">Managed by</div>
+              <div style="font-size:12px;font-weight:600;color:var(--text);margin-top:2px">Momentum Digital</div>
+            </div>
+            <div style="width:1px;height:32px;background:var(--border)"></div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s ease-in-out infinite"></div>
+              <span style="font-size:11px;color:var(--green);font-family:var(--font-mono);font-weight:500">Live</span>
+            </div>
+          </div>
+        </div>
         <div class="stats-grid" id="statsGrid"></div>
         <div class="chart-row">
           <div class="chart-card">
