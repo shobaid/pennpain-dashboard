@@ -6,7 +6,7 @@
 <title>Penn Pain Physicians · Analytics by Momentum Digital</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Roboto+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg: #0b0c0e;
@@ -28,7 +28,7 @@
   --purple: #a78bfa;
   --font-display: 'Plus Jakarta Sans', sans-serif;
   --font-body: 'Plus Jakarta Sans', sans-serif;
-  --font-mono: 'DM Mono', monospace;
+  --font-mono: 'Roboto Mono', monospace;
   --sidebar: 220px;
   --radius: 14px;
   --radius-sm: 8px;
@@ -824,10 +824,10 @@ async function gsc(body) {
 
 const chartBase = {
   responsive:true, maintainAspectRatio:false,
-  plugins:{legend:{display:false},tooltip:{backgroundColor:'#1e2128',borderColor:'rgba(255,255,255,0.08)',borderWidth:1,titleColor:'#f0ede8',bodyColor:'#9ca3af',padding:10,titleFont:{family:'DM Mono',size:11},bodyFont:{family:'DM Mono',size:11}}},
+  plugins:{legend:{display:false},tooltip:{backgroundColor:'#1e2128',borderColor:'rgba(255,255,255,0.08)',borderWidth:1,titleColor:'#f0ede8',bodyColor:'#9ca3af',padding:10,titleFont:{family:'Roboto Mono',size:11},bodyFont:{family:'Roboto Mono',size:11}}},
   scales:{
-    x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#6b7280',font:{size:10,family:'DM Mono'},maxTicksLimit:10}},
-    y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#6b7280',font:{size:10,family:'DM Mono'},callback:v=>fmt(v)}}
+    x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#6b7280',font:{size:10,family:'Roboto Mono'},maxTicksLimit:10}},
+    y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#6b7280',font:{size:10,family:'Roboto Mono'},callback:v=>fmt(v)}}
   }
 };
 
@@ -1026,7 +1026,7 @@ function renderSection(name) {
       {label:'Impressions',data:(gscTs.rows||[]).map(r=>r.impressions||0),borderColor:'#4d9fff',backgroundColor:'rgba(77,159,255,0.06)',borderWidth:2,pointRadius:0,tension:0.4,fill:true,yAxisID:'y'},
       {label:'Clicks',data:(gscTs.rows||[]).map(r=>r.clicks||0),borderColor:'#a78bfa',borderWidth:2,pointRadius:0,tension:0.4,fill:false,borderDash:[5,3],yAxisID:'y2'}
     ]);
-    gc.options.scales.y2={position:'right',grid:{display:false},ticks:{color:'#6b7280',font:{size:10,family:'DM Mono'}}};
+    gc.options.scales.y2={position:'right',grid:{display:false},ticks:{color:'#6b7280',font:{size:10,family:'Roboto Mono'}}};
     gc.update();
 
     const bLabels=(bounceTs.rows||[]).map(r=>{const d=r.dimensionValues[0].value;return d.slice(4,6)+'/'+d.slice(6,8);});
@@ -1086,7 +1086,7 @@ function renderSection(name) {
       {label:'Impressions',data:(gscTs.rows||[]).map(r=>r.impressions||0),borderColor:'#4d9fff',backgroundColor:'rgba(77,159,255,0.07)',borderWidth:2,pointRadius:1,tension:0.4,fill:true,yAxisID:'y'},
       {label:'Clicks',data:(gscTs.rows||[]).map(r=>r.clicks||0),borderColor:'#a78bfa',backgroundColor:'rgba(167,139,250,0.04)',borderWidth:2,pointRadius:1,tension:0.4,fill:true,borderDash:[5,3],yAxisID:'y2'}
     ]);
-    gf.options.scales.y2={position:'right',grid:{display:false},ticks:{color:'#6b7280',font:{size:10,family:'DM Mono'}}}; gf.update();
+    gf.options.scales.y2={position:'right',grid:{display:false},ticks:{color:'#6b7280',font:{size:10,family:'Roboto Mono'}}}; gf.update();
 
     const maxImpr=gscQ.rows?.[0]?.impressions||1;
     document.getElementById('queriesBody').innerHTML=(gscQ.rows||[]).map((r,i)=>{
