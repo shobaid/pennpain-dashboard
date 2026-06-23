@@ -392,12 +392,12 @@ body { font-family: var(--font-body); background: var(--bg); color: var(--text);
             </div>
           </div>
         </div>
-        <!-- Traffic KPIs -->
-        <div class="section-label" style="margin-bottom:10px">Traffic</div>
-        <div class="stats-grid" id="statsGrid-traffic" style="margin-bottom:1.25rem"></div>
         <!-- Conversion KPIs -->
         <div class="section-label" style="margin-bottom:10px">Conversions</div>
         <div class="stats-grid" id="statsGrid-conv" style="margin-bottom:1.25rem"></div>
+        <!-- Traffic KPIs -->
+        <div class="section-label" style="margin-bottom:10px">Traffic</div>
+        <div class="stats-grid" id="statsGrid-traffic" style="margin-bottom:1.25rem"></div>
         <!-- GSC KPIs -->
         <div class="section-label" style="margin-bottom:10px">Search Console</div>
         <div class="stats-grid" id="statsGrid-gsc" style="margin-bottom:0"></div>
@@ -975,9 +975,9 @@ function renderKPIs() {
     {id:'position',label:'Avg. Position',value:avgPos.toFixed(1),color:'#a78bfa',noComp:true,path:'M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12',sparkData:(gscTs.rows||[]).map(r=>r.position||0)}
   ];
 
-  // Split cards into groups
-  const trafficCards = cards.slice(0,4);
+  // Split cards into groups - conversions first
   const convCards = cards.slice(4,7);
+  const trafficCards = cards.slice(0,4);
   const gscCards = cards.slice(7);
 
   function renderCardGroup(groupCards, gridId, startIdx) {
@@ -1006,8 +1006,8 @@ function renderKPIs() {
     });
   }
 
-  renderCardGroup(trafficCards, 'statsGrid-traffic', 0);
-  renderCardGroup(convCards, 'statsGrid-conv', 4);
+  renderCardGroup(convCards, 'statsGrid-conv', 0);
+  renderCardGroup(trafficCards, 'statsGrid-traffic', 3);
   renderCardGroup(gscCards, 'statsGrid-gsc', 7);
 }
 
