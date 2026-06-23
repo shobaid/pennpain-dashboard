@@ -143,9 +143,27 @@ app.get('/auth/callback', async (req, res) => {
       headers: { Authorization: `Bearer ${tokenRes.data.access_token}` }
     });
     const email = userRes.data.email;
-    // Check if reviewer is allowed
-    const { data: reviewer } = await supabase.from('allowed_reviewers').select('*').eq('email', email).single();
-    if (!reviewer) return res.redirect('/?review_error=not_authorized');
+    console.log('Checking reviewer access for:', email);
+    
+    // Check if reviewer is allowed - use maybeSingle to avoid error on no match
+    const { data: reviewer, error: reviewerError } = await supabase
+      .from('allowed_reviewers')
+      .select('*')
+      .ilike('email', email.trim())
+      .maybeSingle();
+    
+    console.log('Reviewer lookup result:', { reviewer, reviewerError });
+    
+    if (reviewerError) {
+      console.error('Supabase error:', reviewerError);
+      return res.redirect(`/?review_error=${encodeURIComponent('Database error: ' + reviewerError.message)}`);
+    }
+    
+    if (!reviewer) {
+      console.log('Email not found in allowed_reviewers:', email);
+      return res.redirect(`/?review_error=${encodeURIComponent('not_authorized: ' + email)}`);
+    }
+    
     res.cookie(REVIEW_COOKIE, signSession({ email, name: userRes.data.name, picture: userRes.data.picture, role: reviewer.role }), COOKIE_OPTS);
     res.redirect('/?section=documents');
   } catch (e) {
