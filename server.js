@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const { GoogleAuth } = require('google-auth-library');
+const { google } = require('googleapis');
 const { createClient } = require('@supabase/supabase-js');
 const path = require('path');
 
@@ -16,6 +17,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 const GA4_PROPERTY = 'properties/486245473';
 const GSC_SITE = 'sc-domain:pennpain.com';
 const WC_PROFILE = '148479';
+const SHEET_ID = '1cXnqHBu9OJXA-TIemxTAm8tkKNDOMbY8hWgWlpbi3P4';
+const SHEET_TAB = 'dashboard_data';
 const REVIEW_COOKIE = 'pp_reviewer';
 
 // ── Supabase ───────────────────────────────────────────────────────────────
@@ -24,15 +27,18 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// ── Google service account auth (for GA4/GSC) ──────────────────────────────
+// ── Google auth (service account) ─────────────────────────────────────────
+const serviceAccountCreds = {
+  client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+  private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+};
+
 const gauth = new GoogleAuth({
-  credentials: {
-    client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-  },
+  credentials: serviceAccountCreds,
   scopes: [
     'https://www.googleapis.com/auth/analytics.readonly',
-    'https://www.googleapis.com/auth/webmasters.readonly'
+    'https://www.googleapis.com/auth/webmasters.readonly',
+    'https://www.googleapis.com/auth/spreadsheets.readonly'
   ]
 });
 
@@ -93,20 +99,114 @@ app.post('/api/gsc', async (req, res) => {
 // ── WhatConverts proxy ─────────────────────────────────────────────────────
 app.get('/api/whatconverts', async (req, res) => {
   try {
-    const { start_date, end_date, per_page = 25, page = 1 } = req.query;
+    const { start_date, end_date, per_page = 25, page = 1, quotable } = req.query;
     const token = Buffer.from(`${process.env.WHATCONVERTS_TOKEN}:${process.env.WHATCONVERTS_SECRET}`).toString('base64');
+    const params = { profile_id: WC_PROFILE, start_date, end_date, per_page, page };
+    if (quotable) params.quotable = quotable;
     const response = await axios.get('https://app.whatconverts.com/api/v1/leads', {
       headers: { Authorization: `Basic ${token}` },
-      params: { profile_id: WC_PROFILE, start_date, end_date, per_page, page }
+      params
     });
     const data = response.data;
     const leads = data.leads || [];
     const callLeads = leads.filter(l => (l.lead_type||'').toLowerCase().includes('call') || (l.lead_type||'').toLowerCase().includes('phone')).length;
     const formLeads = leads.filter(l => (l.lead_type||'').toLowerCase().includes('form') || (l.lead_type||'').toLowerCase().includes('web')).length;
-    const textLeads = leads.filter(l => (l.lead_type||'').toLowerCase().includes('text') || (l.lead_type||'').toLowerCase().includes('sms') || (l.lead_type||'').toLowerCase().includes('chat')).length;
-    res.json({ total_leads: data.total_leads || 0, total_pages: data.total_pages || 1, leads, summary: { total: data.total_leads || 0, calls: callLeads, forms: formLeads, texts: textLeads } });
+    const textLeads = leads.filter(l => (l.lead_type||'').toLowerCase().includes('text') || (l.lead_type||'').toLowerCase().includes('sms')).length;
+    res.json({
+      total_leads: data.total_leads || 0,
+      total_pages: data.total_pages || 1,
+      leads,
+      summary: { total: data.total_leads || 0, calls: callLeads, forms: formLeads, texts: textLeads }
+    });
   } catch (e) {
     res.status(e.response?.status || 500).json({ error: e.message, total_leads: 0, leads: [], summary: { total: 0, calls: 0, forms: 0, texts: 0 } });
+  }
+});
+
+// ── WhatConverts NP Appointments (quotable=yes) ────────────────────────────
+app.get('/api/whatconverts/np-appointments', async (req, res) => {
+  try {
+    const { start_date, end_date } = req.query;
+    const token = Buffer.from(`${process.env.WHATCONVERTS_TOKEN}:${process.env.WHATCONVERTS_SECRET}`).toString('base64');
+
+    // Fetch all quotable=yes leads (NP appointments)
+    const response = await axios.get('https://app.whatconverts.com/api/v1/leads', {
+      headers: { Authorization: `Basic ${token}` },
+      params: { profile_id: WC_PROFILE, start_date, end_date, quotable: 'Yes', per_page: 100 }
+    });
+
+    const leads = response.data.leads || [];
+    const total = response.data.total_leads || 0;
+
+    // Group by lead source
+    const sourceMap = {};
+    leads.forEach(lead => {
+      const source = lead.lead_source || lead.traffic_source || 'direct';
+      const medium = lead.lead_medium || lead.traffic_medium || 'none';
+      const key = medium === 'cpc' ? 'Google Ads' :
+                  source === 'google' && medium === 'organic' ? 'Google Organic' :
+                  source === '(direct)' || source === 'direct' ? 'Direct' :
+                  medium === 'referral' ? 'Referral' :
+                  medium === 'newsletter' || medium === 'email' ? 'Email' :
+                  source ? source.charAt(0).toUpperCase() + source.slice(1) : 'Other';
+      sourceMap[key] = (sourceMap[key] || 0) + 1;
+    });
+
+    // Group by lead type
+    const typeMap = {};
+    leads.forEach(lead => {
+      const type = lead.lead_type || 'Other';
+      typeMap[type] = (typeMap[type] || 0) + 1;
+    });
+
+    // Group by date for trend
+    const dateMap = {};
+    leads.forEach(lead => {
+      if (lead.date_created) {
+        const date = lead.date_created.split('T')[0];
+        dateMap[date] = (dateMap[date] || 0) + 1;
+      }
+    });
+
+    res.json({
+      total,
+      leads: leads.slice(0, 20), // return top 20 for table
+      by_source: sourceMap,
+      by_type: typeMap,
+      by_date: dateMap
+    });
+  } catch (e) {
+    console.error('NP appointments error:', e.message);
+    res.status(e.response?.status || 500).json({ error: e.message, total: 0, leads: [], by_source: {}, by_type: {}, by_date: {} });
+  }
+});
+
+// ── Google Sheets proxy (Ad Spend) ─────────────────────────────────────────
+app.get('/api/adspend', async (req, res) => {
+  try {
+    const authClient = await gauth.getClient();
+    const sheets = google.sheets({ version: 'v4', auth: authClient });
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${SHEET_TAB}!A:B`
+    });
+
+    const rows = response.data.values || [];
+    if (rows.length < 2) return res.json({ rows: [], total: 0, latest: null });
+
+    // Skip header row
+    const data = rows.slice(1).map(row => ({
+      date: row[0] || '',
+      ad_spend: parseFloat((row[1] || '0').toString().replace(/[$,]/g, '')) || 0
+    })).filter(r => r.date);
+
+    const total = data.reduce((sum, r) => sum + r.ad_spend, 0);
+    const latest = data[0] || null;
+
+    res.json({ rows: data, total: Math.round(total * 100) / 100, latest });
+  } catch (e) {
+    console.error('Sheets error:', e.message);
+    res.status(500).json({ error: e.message, rows: [], total: 0, latest: null });
   }
 });
 
@@ -143,27 +243,10 @@ app.get('/auth/callback', async (req, res) => {
       headers: { Authorization: `Bearer ${tokenRes.data.access_token}` }
     });
     const email = userRes.data.email;
-    console.log('Checking reviewer access for:', email);
-    
-    // Check if reviewer is allowed - use maybeSingle to avoid error on no match
     const { data: reviewer, error: reviewerError } = await supabase
-      .from('allowed_reviewers')
-      .select('*')
-      .ilike('email', email.trim())
-      .maybeSingle();
-    
-    console.log('Reviewer lookup result:', { reviewer, reviewerError });
-    
-    if (reviewerError) {
-      console.error('Supabase error:', reviewerError);
-      return res.redirect(`/?review_error=${encodeURIComponent('Database error: ' + reviewerError.message)}`);
-    }
-    
-    if (!reviewer) {
-      console.log('Email not found in allowed_reviewers:', email);
-      return res.redirect(`/?review_error=${encodeURIComponent('not_authorized: ' + email)}`);
-    }
-    
+      .from('allowed_reviewers').select('*').ilike('email', email.trim()).maybeSingle();
+    if (reviewerError) return res.redirect(`/?review_error=${encodeURIComponent('Database error: ' + reviewerError.message)}`);
+    if (!reviewer) return res.redirect(`/?review_error=${encodeURIComponent('not_authorized: ' + email)}`);
     res.cookie(REVIEW_COOKIE, signSession({ email, name: userRes.data.name, picture: userRes.data.picture, role: reviewer.role }), COOKIE_OPTS);
     res.redirect('/?section=documents');
   } catch (e) {
@@ -172,14 +255,12 @@ app.get('/auth/callback', async (req, res) => {
   }
 });
 
-// ── Review Auth: me ────────────────────────────────────────────────────────
 app.get('/auth/review/me', (req, res) => {
   const session = readSession(req);
   if (!session) return res.json({ authenticated: false });
   res.json({ authenticated: true, user: session });
 });
 
-// ── Review Auth: logout ────────────────────────────────────────────────────
 app.post('/auth/review/logout', (req, res) => {
   res.clearCookie(REVIEW_COOKIE);
   res.json({ ok: true });
@@ -224,7 +305,6 @@ app.delete('/api/documents/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
-// ── Comments API ───────────────────────────────────────────────────────────
 app.get('/api/documents/:id/comments', async (req, res) => {
   const session = readSession(req);
   if (!session) return res.status(401).json({ error: 'Not authenticated' });

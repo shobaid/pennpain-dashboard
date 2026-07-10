@@ -10,12 +10,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@supabase/supabase-js": "^2.108.2",
-    "axios": "^1.18.0",
+    "@supabase/supabase-js": "^2.110.2",
+    "axios": "^1.18.1",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "google-auth-library": "^10.7.0",
+    "google-auth-library": "^10.9.0",
+    "googleapis": "^173.0.0",
     "jsonwebtoken": "^9.0.3"
   }
 }
