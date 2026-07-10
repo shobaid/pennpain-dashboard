@@ -1293,7 +1293,8 @@ function renderSection(name) {
     const topSource = Object.entries(npBySource).sort((a,b)=>b[1]-a[1])[0];
     document.getElementById('np-top-source').textContent = topSource ? topSource[0] : '–';
     document.getElementById('np-top-source-count').textContent = topSource ? `${topSource[1]} appointment${topSource[1]!==1?'s':''}` : '';
-    document.getElementById('ad-spend-total').textContent = '$' + (adSpend.total||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
+    const adTotal = adSpend.total || 0;
+    document.getElementById('ad-spend-total').textContent = '$' + adTotal.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
 
     // NP by source donut
     const npSrcLabels = Object.keys(npBySource);
@@ -1317,6 +1318,7 @@ function renderSection(name) {
 
     // Ad spend bar chart from sheet
     const adRows = (adSpend.rows || []).slice().reverse(); // oldest first
+    // Use date as-is for label — supports any format Melissa enters (6/25-7/2, 2026-06-25, etc.)
     const adLabels = adRows.map(r => r.date);
     const adValues = adRows.map(r => r.ad_spend);
     if(charts.adSpendChart) charts.adSpendChart.destroy();
