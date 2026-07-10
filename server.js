@@ -101,7 +101,7 @@ app.get('/api/whatconverts', async (req, res) => {
   try {
     const { start_date, end_date, per_page = 25, page = 1, quotable } = req.query;
     const token = Buffer.from(`${process.env.WHATCONVERTS_TOKEN}:${process.env.WHATCONVERTS_SECRET}`).toString('base64');
-    const params = { profile_id: WC_PROFILE, start_date, end_date, per_page, page };
+    const params = { profile_id: WC_PROFILE, date_start: start_date, date_end: end_date, per_page, page };
     if (quotable) params.quotable = quotable;
     const response = await axios.get('https://app.whatconverts.com/api/v1/leads', {
       headers: { Authorization: `Basic ${token}` },
@@ -132,7 +132,7 @@ app.get('/api/whatconverts/np-appointments', async (req, res) => {
     // Fetch all quotable=yes leads (NP appointments)
     const response = await axios.get('https://app.whatconverts.com/api/v1/leads', {
       headers: { Authorization: `Basic ${token}` },
-      params: { profile_id: WC_PROFILE, start_date, end_date, quotable: 'Yes', per_page: 100 }
+      params: { profile_id: WC_PROFILE, date_start: start_date, date_end: end_date, quotable: 'Yes', per_page: 100 }
     });
 
     const leads = response.data.leads || [];
@@ -330,4 +330,3 @@ app.post('/api/documents/:id/comments', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`\n✅ PennPain Dashboard running at http://localhost:${PORT}\n`));
 module.exports = app;
-                                 
