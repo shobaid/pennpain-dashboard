@@ -132,7 +132,7 @@ app.get('/api/whatconverts/np-appointments', async (req, res) => {
     // Fetch all quotable=yes leads (NP appointments)
     const response = await axios.get('https://app.whatconverts.com/api/v1/leads', {
       headers: { Authorization: `Basic ${token}` },
-      params: { profile_id: WC_PROFILE, date_start: start_date, date_end: end_date, quotable: 'Yes', per_page: 100 }
+      params: { profile_id: WC_PROFILE, date_start: start_date, date_end: end_date, quotable: 'yes', per_page: 100 }
     });
 
     const leads = response.data.leads || [];
@@ -176,8 +176,10 @@ app.get('/api/whatconverts/np-appointments', async (req, res) => {
       by_date: dateMap
     });
   } catch (e) {
-    console.error('NP appointments error:', e.message);
-    res.status(e.response?.status || 500).json({ error: e.message, total: 0, leads: [], by_source: {}, by_type: {}, by_date: {} });
+    const errDetail = e.response?.data || e.message;
+    console.error('NP appointments error:', e.response?.status, JSON.stringify(errDetail));
+    // Return empty gracefully so rest of dashboard still loads
+    res.json({ error: e.message, total: 0, leads: [], by_source: {}, by_type: {}, by_date: {} });
   }
 });
 
