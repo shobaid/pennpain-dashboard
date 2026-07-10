@@ -205,8 +205,9 @@ app.get('/api/adspend', async (req, res) => {
 
     res.json({ rows: data, total: Math.round(total * 100) / 100, latest });
   } catch (e) {
-    console.error('Sheets error:', e.message);
-    res.status(500).json({ error: e.message, rows: [], total: 0, latest: null });
+    console.error('Sheets error:', e.message, e.response?.data || '');
+    // Return empty gracefully so dashboard still loads
+    res.json({ error: e.message, rows: [], total: 0, latest: null });
   }
 });
 
@@ -329,3 +330,4 @@ app.post('/api/documents/:id/comments', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`\n✅ PennPain Dashboard running at http://localhost:${PORT}\n`));
 module.exports = app;
+                                 
