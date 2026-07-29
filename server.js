@@ -131,7 +131,6 @@ app.get('/api/whatconverts/np-appointments', async (req, res) => {
 
     const reqParams = { profile_id: WC_PROFILE, start_date, end_date, quotable: 'yes', per_page: 100 };
     console.log('NP appts request params:', JSON.stringify(reqParams));
-    // Fetch all quotable=yes leads (NP appointments)
     const response = await axios.get('https://app.whatconverts.com/api/v1/leads', {
       headers: { Authorization: `Basic ${token}` },
       params: reqParams
@@ -141,7 +140,6 @@ app.get('/api/whatconverts/np-appointments', async (req, res) => {
     const total = response.data.total_leads || 0;
     console.log('NP appts response: total=', total, 'leads count=', leads.length, 'first lead quotable=', leads[0]?.quotable);
 
-    // Group by lead source
     const sourceMap = {};
     leads.forEach(lead => {
       const source = lead.lead_source || lead.traffic_source || 'direct';
@@ -155,14 +153,12 @@ app.get('/api/whatconverts/np-appointments', async (req, res) => {
       sourceMap[key] = (sourceMap[key] || 0) + 1;
     });
 
-    // Group by lead type
     const typeMap = {};
     leads.forEach(lead => {
       const type = lead.lead_type || 'Other';
       typeMap[type] = (typeMap[type] || 0) + 1;
     });
 
-    // Group by date for trend
     const dateMap = {};
     leads.forEach(lead => {
       if (lead.date_created) {
@@ -173,7 +169,7 @@ app.get('/api/whatconverts/np-appointments', async (req, res) => {
 
     res.json({
       total,
-      leads: leads.slice(0, 20), // return top 20 for table
+      leads: leads.slice(0, 20),
       by_source: sourceMap,
       by_type: typeMap,
       by_date: dateMap
@@ -181,38 +177,48 @@ app.get('/api/whatconverts/np-appointments', async (req, res) => {
   } catch (e) {
     const errDetail = e.response?.data || e.message;
     console.error('NP appointments error:', e.response?.status, JSON.stringify(errDetail));
-    // Return empty gracefully so rest of dashboard still loads
     res.json({ error: e.message, total: 0, leads: [], by_source: {}, by_type: {}, by_date: {} });
   }
 });
 
-// ── Google Sheets proxy (Ad Spend) ─────────────────────────────────────────
+// ── Google Sheets proxy (Ad Spend + NP Appointments) ──────────────────────
 app.get('/api/adspend', async (req, res) => {
   try {
     const authClient = await gauth.getClient();
     const sheets = google.sheets({ version: 'v4', auth: authClient });
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `${SHEET_TAB}!A:B`
+      range: `${SHEET_TAB}!A:E`
     });
 
     const rows = response.data.values || [];
-    if (rows.length < 2) return res.json({ rows: [], total: 0, latest: null });
+    if (rows.length < 2) return res.json({ rows: [], total: 0, latest: null, np: null });
 
-    // Skip header row
+    // Skip header row — Fiona adds newest row at top so data[0] is always latest
     const data = rows.slice(1).map(row => ({
       date: row[0] || '',
-      ad_spend: parseFloat((row[1] || '0').toString().replace(/[$,]/g, '')) || 0
+      ad_spend: parseFloat((row[1] || '0').toString().replace(/[$,]/g, '')) || 0,
+      np_this_month: parseInt((row[2] || '0').toString().replace(/[^0-9]/g, '')) || 0,
+      np_future: parseInt((row[3] || '0').toString().replace(/[^0-9]/g, '')) || 0,
+      np_total: parseInt((row[4] || '0').toString().replace(/[^0-9]/g, '')) || 0
     })).filter(r => r.date);
 
     const total = data.reduce((sum, r) => sum + r.ad_spend, 0);
-    const latest = data[0] || null;
+    const latest = data[0] || null; // Row 2 = most recent (newest at top)
 
-    res.json({ rows: data, total: Math.round(total * 100) / 100, latest });
+    res.json({
+      rows: data,
+      total: Math.round(total * 100) / 100,
+      latest,
+      np: latest ? {
+        this_month: latest.np_this_month,
+        future: latest.np_future,
+        total: latest.np_total
+      } : null
+    });
   } catch (e) {
     console.error('Sheets error:', e.message, e.response?.data || '');
-    // Return empty gracefully so dashboard still loads
-    res.json({ error: e.message, rows: [], total: 0, latest: null });
+    res.json({ error: e.message, rows: [], total: 0, latest: null, np: null });
   }
 });
 
