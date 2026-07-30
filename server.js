@@ -204,7 +204,7 @@ app.get('/api/adspend', async (req, res) => {
     })).filter(r => r.date);
 
     const total = data.reduce((sum, r) => sum + r.ad_spend, 0);
-    const latest = data[0] || null; // Row 2 = most recent (newest at top)
+    const latest = data[data.length - 1] || null; // Last row = most recent (newest at bottom)
 
     res.json({
       rows: data,
