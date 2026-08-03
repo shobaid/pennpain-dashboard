@@ -18,7 +18,7 @@ const GA4_PROPERTY = 'properties/486245473';
 const GSC_SITE = 'sc-domain:pennpain.com';
 const WC_PROFILE = '148479';
 const SHEET_ID = '1cXnqHBu9OJXA-TIemxTAm8tkKNDOMbY8hWgWlpbi3P4';
-const SHEET_TAB = 'dashboard_data';
+const SHEET_TAB = 'dash data mtd';
 const REVIEW_COOKIE = 'pp_reviewer';
 
 // ── Supabase ───────────────────────────────────────────────────────────────
