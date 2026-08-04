@@ -206,15 +206,20 @@ app.get('/api/adspend', async (req, res) => {
     const total = data.reduce((sum, r) => sum + r.ad_spend, 0);
     const latest = data[0] || null; // Row 2 = most recent (Fiona adds newest at top)
 
+    // Sum NP columns across ALL rows for MTD totals
+    const npThisMonthTotal = data.reduce((s, r) => s + (r.np_this_month || 0), 0);
+    const npFutureTotal = data.reduce((s, r) => s + (r.np_future || 0), 0);
+    const npTotal = data.reduce((s, r) => s + (r.np_total || 0), 0);
+
     res.json({
       rows: data,
       total: Math.round(total * 100) / 100,
       latest,
-      np: latest ? {
-        this_month: latest.np_this_month,
-        future: latest.np_future,
-        total: latest.np_total
-      } : null
+      np: {
+        this_month: npThisMonthTotal,
+        future: npFutureTotal,
+        total: npTotal
+      }
     });
   } catch (e) {
     console.error('Sheets error:', e.message, e.response?.data || '');
