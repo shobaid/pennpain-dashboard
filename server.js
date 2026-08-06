@@ -38,7 +38,8 @@ const gauth = new GoogleAuth({
   scopes: [
     'https://www.googleapis.com/auth/analytics.readonly',
     'https://www.googleapis.com/auth/webmasters.readonly',
-    'https://www.googleapis.com/auth/spreadsheets.readonly'
+    'https://www.googleapis.com/auth/spreadsheets.readonly',
+    'https://www.googleapis.com/auth/business.manage'
   ]
 });
 
@@ -128,18 +129,15 @@ app.get('/api/whatconverts/np-appointments', async (req, res) => {
   try {
     const { start_date, end_date } = req.query;
     const token = Buffer.from(`${process.env.WHATCONVERTS_TOKEN}:${process.env.WHATCONVERTS_SECRET}`).toString('base64');
-
     const reqParams = { profile_id: WC_PROFILE, start_date, end_date, quotable: 'yes', per_page: 100 };
     console.log('NP appts request params:', JSON.stringify(reqParams));
     const response = await axios.get('https://app.whatconverts.com/api/v1/leads', {
       headers: { Authorization: `Basic ${token}` },
       params: reqParams
     });
-
     const leads = response.data.leads || [];
     const total = response.data.total_leads || 0;
-    console.log('NP appts response: total=', total, 'leads count=', leads.length, 'first lead quotable=', leads[0]?.quotable);
-
+    console.log('NP appts response: total=', total, 'leads count=', leads.length);
     const sourceMap = {};
     leads.forEach(lead => {
       const source = lead.lead_source || lead.traffic_source || 'direct';
@@ -152,13 +150,11 @@ app.get('/api/whatconverts/np-appointments', async (req, res) => {
                   source ? source.charAt(0).toUpperCase() + source.slice(1) : 'Other';
       sourceMap[key] = (sourceMap[key] || 0) + 1;
     });
-
     const typeMap = {};
     leads.forEach(lead => {
       const type = lead.lead_type || 'Other';
       typeMap[type] = (typeMap[type] || 0) + 1;
     });
-
     const dateMap = {};
     leads.forEach(lead => {
       if (lead.date_created) {
@@ -166,14 +162,7 @@ app.get('/api/whatconverts/np-appointments', async (req, res) => {
         dateMap[date] = (dateMap[date] || 0) + 1;
       }
     });
-
-    res.json({
-      total,
-      leads: leads.slice(0, 20),
-      by_source: sourceMap,
-      by_type: typeMap,
-      by_date: dateMap
-    });
+    res.json({ total, leads: leads.slice(0, 20), by_source: sourceMap, by_type: typeMap, by_date: dateMap });
   } catch (e) {
     const errDetail = e.response?.data || e.message;
     console.error('NP appointments error:', e.response?.status, JSON.stringify(errDetail));
@@ -190,11 +179,8 @@ app.get('/api/adspend', async (req, res) => {
       spreadsheetId: SHEET_ID,
       range: `${SHEET_TAB}!A:E`
     });
-
     const rows = response.data.values || [];
     if (rows.length < 2) return res.json({ rows: [], total: 0, latest: null, np: null });
-
-    // Skip header row — Fiona adds newest row at top so data[0] is always latest
     const data = rows.slice(1).map(row => ({
       date: row[0] || '',
       ad_spend: parseFloat((row[1] || '0').toString().replace(/[$,]/g, '')) || 0,
@@ -202,28 +188,49 @@ app.get('/api/adspend', async (req, res) => {
       np_future: parseInt((row[3] || '0').toString().replace(/[^0-9]/g, '')) || 0,
       np_total: parseInt((row[4] || '0').toString().replace(/[^0-9]/g, '')) || 0
     })).filter(r => r.date);
-
     const total = data.reduce((sum, r) => sum + r.ad_spend, 0);
-    const latest = data[0] || null; // Row 2 = most recent (Fiona adds newest at top)
-
-    // Sum NP columns across ALL rows for MTD totals
+    const latest = data[0] || null;
     const npThisMonthTotal = data.reduce((s, r) => s + (r.np_this_month || 0), 0);
     const npFutureTotal = data.reduce((s, r) => s + (r.np_future || 0), 0);
     const npTotal = data.reduce((s, r) => s + (r.np_total || 0), 0);
-
     res.json({
       rows: data,
       total: Math.round(total * 100) / 100,
       latest,
-      np: {
-        this_month: npThisMonthTotal,
-        future: npFutureTotal,
-        total: npTotal
-      }
+      np: { this_month: npThisMonthTotal, future: npFutureTotal, total: npTotal }
     });
   } catch (e) {
     console.error('Sheets error:', e.message, e.response?.data || '');
     res.json({ error: e.message, rows: [], total: 0, latest: null, np: null });
+  }
+});
+
+// ── GBP Discovery (TEMPORARY — remove after getting location IDs) ──────────
+app.get('/api/gbp-discovery', async (req, res) => {
+  try {
+    const client = await gauth.getClient();
+    const token = await client.getAccessToken();
+    const headers = { Authorization: `Bearer ${token.token}` };
+    const accountsRes = await axios.get(
+      'https://mybusinessaccountmanagement.googleapis.com/v1/accounts',
+      { headers }
+    );
+    const accounts = accountsRes.data.accounts || [];
+    const results = [];
+    for (const account of accounts) {
+      try {
+        const locRes = await axios.get(
+          `https://mybusinessbusinessinformation.googleapis.com/v1/${account.name}/locations?readMask=name,title,storefrontAddress`,
+          { headers }
+        );
+        results.push({ account: account.name, locations: locRes.data.locations || [] });
+      } catch (locErr) {
+        results.push({ account: account.name, error: locErr.response?.data?.error?.message || locErr.message });
+      }
+    }
+    res.json(results);
+  } catch (e) {
+    res.status(500).json({ error: e.response?.data?.error || e.message });
   }
 });
 
@@ -346,28 +353,3 @@ app.post('/api/documents/:id/comments', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`\n✅ PennPain Dashboard running at http://localhost:${PORT}\n`));
 module.exports = app;
-
-// TEMPORARY — remove after getting location IDs
-app.get('/api/gbp-discovery', async (req, res) => {
-  try {
-    const client = await gauth.getClient();
-    const token = await client.getAccessToken();
-    const headers = { Authorization: `Bearer ${token.token}` };
-    const accountsRes = await axios.get(
-      'https://mybusinessaccountmanagement.googleapis.com/v1/accounts',
-      { headers }
-    );
-    const accounts = accountsRes.data.accounts || [];
-    const results = [];
-    for (const account of accounts) {
-      const locRes = await axios.get(
-        `https://mybusinessbusinessinformation.googleapis.com/v1/${account.name}/locations?readMask=name,title,storefrontAddress`,
-        { headers }
-      );
-      results.push({ account: account.name, locations: locRes.data.locations || [] });
-    }
-    res.json(results);
-  } catch (e) {
-    res.status(500).json({ error: e.response?.data?.error || e.message });
-  }
-});
