@@ -1170,6 +1170,7 @@ function renderKPIs() {
 }
 
 function renderSection(name) {
+  if(name==='gmb'){ renderGMB(); return; }
   const {ts,srcs,gscTs,bounceTs,devices,pages,gscQ,newUsers,gscSum}=cachedData;
 
   if(name==='overview') {
