@@ -18,7 +18,7 @@ const GA4_PROPERTY = 'properties/486245473';
 const GSC_SITE = 'sc-domain:pennpain.com';
 const WC_PROFILE = '148479';
 const SHEET_ID = '1cXnqHBu9OJXA-TIemxTAm8tkKNDOMbY8hWgWlpbi3P4';
-const SHEET_TAB = 'dashboard_data';
+const SHEET_TAB = 'dash data mtd';
 const REVIEW_COOKIE = 'pp_reviewer';
 
 // ── Supabase ───────────────────────────────────────────────────────────────
@@ -204,17 +204,22 @@ app.get('/api/adspend', async (req, res) => {
     })).filter(r => r.date);
 
     const total = data.reduce((sum, r) => sum + r.ad_spend, 0);
-    const latest = data[data.length - 1] || null; // Last row = most recent (newest at bottom)
+    const latest = data[0] || null; // Row 2 = most recent (Fiona adds newest at top)
+
+    // Sum NP columns across ALL rows for MTD totals
+    const npThisMonthTotal = data.reduce((s, r) => s + (r.np_this_month || 0), 0);
+    const npFutureTotal = data.reduce((s, r) => s + (r.np_future || 0), 0);
+    const npTotal = data.reduce((s, r) => s + (r.np_total || 0), 0);
 
     res.json({
       rows: data,
       total: Math.round(total * 100) / 100,
       latest,
-      np: latest ? {
-        this_month: latest.np_this_month,
-        future: latest.np_future,
-        total: latest.np_total
-      } : null
+      np: {
+        this_month: npThisMonthTotal,
+        future: npFutureTotal,
+        total: npTotal
+      }
     });
   } catch (e) {
     console.error('Sheets error:', e.message, e.response?.data || '');
