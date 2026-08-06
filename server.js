@@ -19,10 +19,6 @@ const GSC_SITE = 'sc-domain:pennpain.com';
 const WC_PROFILE = '148479';
 const SHEET_ID = '1cXnqHBu9OJXA-TIemxTAm8tkKNDOMbY8hWgWlpbi3P4';
 const SHEET_TAB = 'dash data mtd';
-const AA_CLIENT_ID = 1827631;
-const AA_CAMPAIGN_ID = 1827631;
-const AA_ACCOUNT_ID = 201822;
-const AA_INTEGRATION_ID = 4832946;
 const REVIEW_COOKIE = 'pp_reviewer';
 
 // ── Supabase ───────────────────────────────────────────────────────────────
@@ -48,12 +44,6 @@ async function getGAToken() {
   const client = await gauth.getClient();
   const token = await client.getAccessToken();
   return token.token;
-}
-
-// ── Agency Analytics auth ──────────────────────────────────────────────────
-function getAAHeaders() {
-  const encoded = Buffer.from(`:${process.env.AGENCYANALYTICS_API_KEY}`).toString('base64');
-  return { Authorization: `Basic ${encoded}`, 'Content-Type': 'application/json' };
 }
 
 // ── Reviewer session helpers ───────────────────────────────────────────────
@@ -201,60 +191,60 @@ app.get('/api/adspend', async (req, res) => {
   }
 });
 
-// ── Google Business Profile (via Agency Analytics) ────────────────────────
+// ── Google Business Profile (via Google Sheets — exported from Agency Analytics) ──
 app.get('/api/gmb', async (req, res) => {
   try {
     const { start_date, end_date } = req.query;
-    const startDate = start_date || new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
-    const endDate = end_date || new Date().toISOString().split('T')[0];
-    const headers = getAAHeaders();
+    const authClient = await gauth.getClient();
+    const sheets = google.sheets({ version: 'v4', auth: authClient });
 
-    // Exact format matching Agency Analytics API playground
-    const body = {
-      account_id: AA_ACCOUNT_ID,
-      campaign_id: AA_CAMPAIGN_ID,
-      provider: 'google-my-business',
-      asset: 'location-analytics',
-      fields: ['date', 'impressions', 'interactions', 'call_clicks', 'direction_requests', 'website_clicks', 'impressions_desktop_search', 'impressions_mobile_search', 'impressions_desktop_maps', 'impressions_mobile_maps'],
-      filters: {
-        account_id: AA_ACCOUNT_ID,
-        campaign_id: AA_CAMPAIGN_ID,
-        integration_campaign_id: AA_INTEGRATION_ID,
-        start_date: startDate,
-        end_date: endDate,
-        compare_start_date: false,
-        compare_end_date: false,
-        location: false,
-        ai_summary: false,
-        date_interval: 'automatic',
-        anomaly_detection: false,
-        forecasting: false
-      },
-      group_by: ['date'],
-      sort: { field_name: 'date', direction: 'asc' },
-      limit: 200
-    };
+    // Sheet columns: Date | Impressions | Interactions | Website Clicks | Call Clicks |
+    // Direction Requests | Impressions Desktop Maps | Impressions Desktop Search |
+    // Impressions Mobile Maps | Impressions Mobile Search
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: 'gmb_data!A:J'
+    });
 
-    const metricsRes = await axios.post('https://apirequest.app/query', body, { headers });
-    const rows = Array.isArray(metricsRes.data) ? metricsRes.data : [];
+    const rows = response.data.values || [];
+    if (rows.length < 2) return res.json({ rows: [], totals: {}, timeseries: [] });
 
-    const totals = rows.reduce((acc, row) => {
-      acc.impressions += parseInt(row.impressions || 0);
-      acc.interactions += parseInt(row.interactions || 0);
-      acc.calls += parseInt(row.call_clicks || 0);
-      acc.directions += parseInt(row.direction_requests || 0);
-      acc.website_clicks += parseInt(row.website_clicks || 0);
-      acc.desktop_search += parseInt(row.impressions_desktop_search || 0);
-      acc.mobile_search += parseInt(row.impressions_mobile_search || 0);
-      acc.desktop_maps += parseInt(row.impressions_desktop_maps || 0);
-      acc.mobile_maps += parseInt(row.impressions_mobile_maps || 0);
+    // Parse rows — skip header
+    const data = rows.slice(1).map(row => ({
+      date: row[0] || '',
+      impressions: parseInt((row[1] || '0').replace(/[^0-9]/g, '')) || 0,
+      interactions: parseInt((row[2] || '0').replace(/[^0-9]/g, '')) || 0,
+      website_clicks: parseInt((row[3] || '0').replace(/[^0-9]/g, '')) || 0,
+      calls: parseInt((row[4] || '0').replace(/[^0-9]/g, '')) || 0,
+      directions: parseInt((row[5] || '0').replace(/[^0-9]/g, '')) || 0,
+      impressions_desktop_maps: parseInt((row[6] || '0').replace(/[^0-9]/g, '')) || 0,
+      impressions_desktop_search: parseInt((row[7] || '0').replace(/[^0-9]/g, '')) || 0,
+      impressions_mobile_maps: parseInt((row[8] || '0').replace(/[^0-9]/g, '')) || 0,
+      impressions_mobile_search: parseInt((row[9] || '0').replace(/[^0-9]/g, '')) || 0
+    })).filter(r => r.date && r.date !== 'Date');
+
+    // Filter by date range if provided
+    const filtered = (start_date && end_date)
+      ? data.filter(r => r.date >= start_date && r.date <= end_date)
+      : data.filter(r => r.impressions > 0); // exclude future empty rows
+
+    // Aggregate totals
+    const totals = filtered.reduce((acc, row) => {
+      acc.impressions += row.impressions;
+      acc.interactions += row.interactions;
+      acc.website_clicks += row.website_clicks;
+      acc.calls += row.calls;
+      acc.directions += row.directions;
+      acc.desktop_search += row.impressions_desktop_search;
+      acc.mobile_search += row.impressions_mobile_search;
+      acc.desktop_maps += row.impressions_desktop_maps;
+      acc.mobile_maps += row.impressions_mobile_maps;
       return acc;
-    }, { impressions: 0, interactions: 0, calls: 0, directions: 0, website_clicks: 0, desktop_search: 0, mobile_search: 0, desktop_maps: 0, mobile_maps: 0 });
+    }, { impressions: 0, interactions: 0, website_clicks: 0, calls: 0, directions: 0, desktop_search: 0, mobile_search: 0, desktop_maps: 0, mobile_maps: 0 });
 
-    res.json({ rows, totals });
+    res.json({ rows: filtered, totals });
   } catch (e) {
-    const detail = e.response?.data || e.message;
-    res.json({ error: e.message, detail, rows: [], totals: { impressions: 0, interactions: 0, calls: 0, directions: 0, website_clicks: 0, desktop_search: 0, mobile_search: 0, desktop_maps: 0, mobile_maps: 0 } });
+    res.json({ error: e.message, rows: [], totals: { impressions: 0, interactions: 0, website_clicks: 0, calls: 0, directions: 0, desktop_search: 0, mobile_search: 0, desktop_maps: 0, mobile_maps: 0 } });
   }
 });
 
