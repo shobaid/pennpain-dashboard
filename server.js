@@ -211,23 +211,56 @@ app.get('/api/gbp-discovery', async (req, res) => {
     const client = await gauth.getClient();
     const token = await client.getAccessToken();
     const headers = { Authorization: `Bearer ${token.token}` };
-    const accountsRes = await axios.get(
-      'https://mybusinessaccountmanagement.googleapis.com/v1/accounts',
-      { headers }
-    );
-    const accounts = accountsRes.data.accounts || [];
+
+    // Try candidate location IDs extracted from GBP profile URLs
+    const candidates = [
+      'locations/2010292799224206106',
+      'locations/3374609053579023698',
+      'locations/9393912307373584702',
+      'locations/18285798301489579963'
+    ];
+
     const results = [];
-    for (const account of accounts) {
+    for (const locName of candidates) {
       try {
         const locRes = await axios.get(
-          `https://mybusinessbusinessinformation.googleapis.com/v1/${account.name}/locations?readMask=name,title,storefrontAddress`,
+          `https://mybusinessbusinessinformation.googleapis.com/v1/${locName}?readMask=name,title,storefrontAddress`,
           { headers }
         );
-        results.push({ account: account.name, locations: locRes.data.locations || [] });
-      } catch (locErr) {
-        results.push({ account: account.name, error: locErr.response?.data?.error?.message || locErr.message });
+        results.push({ tried: locName, success: true, data: locRes.data });
+      } catch (e) {
+        results.push({ tried: locName, success: false, error: e.response?.data?.error?.message || e.message });
       }
     }
+
+    // Also try performance API with date range to see if any work
+    const today = new Date();
+    const startDate = { year: today.getFullYear(), month: today.getMonth(), day: 1 };
+    const endDate = { year: today.getFullYear(), month: today.getMonth() + 1, day: today.getDate() };
+
+    for (const locName of candidates) {
+      try {
+        const perfRes = await axios.get(
+          `https://businessprofileperformance.googleapis.com/v1/${locName}:fetchMultiDailyMetricsTimeSeries`,
+          {
+            headers,
+            params: {
+              'dailyMetrics': 'WEBSITE_CLICKS',
+              'dailyRange.start_date.year': startDate.year,
+              'dailyRange.start_date.month': startDate.month,
+              'dailyRange.start_date.day': startDate.day,
+              'dailyRange.end_date.year': endDate.year,
+              'dailyRange.end_date.month': endDate.month,
+              'dailyRange.end_date.day': endDate.day,
+            }
+          }
+        );
+        results.push({ tried: locName + '_perf', success: true, data: perfRes.data });
+      } catch (e) {
+        results.push({ tried: locName + '_perf', success: false, error: e.response?.data?.error?.message || e.message });
+      }
+    }
+
     res.json(results);
   } catch (e) {
     res.status(500).json({ error: e.response?.data?.error || e.message });
