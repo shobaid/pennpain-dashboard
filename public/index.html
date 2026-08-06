@@ -290,6 +290,10 @@ body { font-family: var(--font-body); background: var(--bg); color: var(--text);
       Conversions
       <span class="nav-badge" id="nb-conversions">–</span>
     </button>
+    <button class="nav-item" onclick="showSection('gmb',this)" id="nav-gmb">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1C5.2 1 3 3.2 3 6c0 3.9 5 9 5 9s5-5.1 5-9c0-2.8-2.2-5-5-5zm0 6.8C6.8 7.8 5.8 6.8 5.8 5.6S6.8 3.5 8 3.5s2.2 1 2.2 2.2S9.2 7.8 8 7.8z"/></svg>
+      Google Business
+    </button>
 
     <div class="nav-section">Client</div>
     <button class="nav-item" onclick="showSection('documents',this)" id="nav-documents">
@@ -607,6 +611,80 @@ body { font-family: var(--font-body); background: var(--bg); color: var(--text);
       </div>
 
       <!-- DOCUMENTS -->
+      <div id="sec-gmb" style="display:none">
+
+        <!-- GMB header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;padding:1rem 1.25rem;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);animation:fadeUp 0.3s ease both">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="width:42px;height:42px;border-radius:10px;background:rgba(66,133,244,0.12);display:flex;align-items:center;justify-content:center;font-size:20px">📍</div>
+            <div>
+              <div style="font-size:15px;font-weight:600;letter-spacing:-0.2px">Google Business Profile</div>
+              <div style="font-size:11px;color:var(--muted);font-family:var(--font-mono);margin-top:3px">Pennsylvania Pain &amp; Spine Institute · Both Locations Combined</div>
+            </div>
+          </div>
+          <span class="pill" style="background:rgba(66,133,244,0.12);color:#4285f4">Agency Analytics</span>
+        </div>
+
+        <!-- KPI cards -->
+        <div class="section-label">Performance</div>
+        <div class="stats-grid" style="margin-bottom:1.5rem">
+          <div class="chart-card" style="padding:1.25rem">
+            <div style="font-size:10.5px;font-weight:500;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;font-family:var(--font-mono);margin-bottom:10px">Impressions</div>
+            <div style="font-family:var(--font-display);font-size:28px;font-weight:600;letter-spacing:-0.3px;color:#4285f4" id="gmb-impressions">–</div>
+            <div style="font-size:11px;color:var(--muted);font-family:var(--font-mono);margin-top:6px">Search + Maps views</div>
+          </div>
+          <div class="chart-card" style="padding:1.25rem">
+            <div style="font-size:10.5px;font-weight:500;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;font-family:var(--font-mono);margin-bottom:10px">Interactions</div>
+            <div style="font-family:var(--font-display);font-size:28px;font-weight:600;letter-spacing:-0.3px;color:var(--green)" id="gmb-interactions">–</div>
+            <div style="font-size:11px;color:var(--muted);font-family:var(--font-mono);margin-top:6px">Total profile actions</div>
+          </div>
+          <div class="chart-card" style="padding:1.25rem">
+            <div style="font-size:10.5px;font-weight:500;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;font-family:var(--font-mono);margin-bottom:10px">Calls</div>
+            <div style="font-family:var(--font-display);font-size:28px;font-weight:600;letter-spacing:-0.3px;color:var(--green)" id="gmb-calls">–</div>
+            <div style="font-size:11px;color:var(--muted);font-family:var(--font-mono);margin-top:6px">Phone call clicks</div>
+          </div>
+          <div class="chart-card" style="padding:1.25rem">
+            <div style="font-size:10.5px;font-weight:500;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;font-family:var(--font-mono);margin-bottom:10px">Direction Requests</div>
+            <div style="font-family:var(--font-display);font-size:28px;font-weight:600;letter-spacing:-0.3px;color:var(--amber)" id="gmb-directions">–</div>
+            <div style="font-size:11px;color:var(--muted);font-family:var(--font-mono);margin-top:6px">Get directions clicks</div>
+          </div>
+          <div class="chart-card" style="padding:1.25rem">
+            <div style="font-size:10.5px;font-weight:500;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;font-family:var(--font-mono);margin-bottom:10px">Website Clicks</div>
+            <div style="font-family:var(--font-display);font-size:28px;font-weight:600;letter-spacing:-0.3px;color:#4285f4" id="gmb-website-clicks">–</div>
+            <div style="font-size:11px;color:var(--muted);font-family:var(--font-mono);margin-top:6px">Visit website clicks</div>
+          </div>
+        </div>
+
+        <!-- Charts row -->
+        <div class="chart-row-2" style="margin-bottom:1.5rem">
+          <div class="chart-card">
+            <div class="section-header"><div><div class="section-title">Search vs Maps</div><div class="section-sub">Impressions by platform</div></div><span class="pill" style="background:rgba(66,133,244,0.12);color:#4285f4">GBP</span></div>
+            <div id="gmbSearchMapsLegend" class="legend-row" style="margin-bottom:8px"></div>
+            <div style="position:relative;height:200px"><canvas id="gmbSearchMapsChart" role="img" aria-label="Search vs Maps">Search vs Maps breakdown.</canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="section-header"><div><div class="section-title">Mobile vs Desktop</div><div class="section-sub">Impressions by device</div></div><span class="pill" style="background:rgba(66,133,244,0.12);color:#4285f4">GBP</span></div>
+            <div id="gmbDeviceLegend" class="legend-row" style="margin-bottom:8px"></div>
+            <div style="position:relative;height:200px"><canvas id="gmbDeviceChart" role="img" aria-label="Mobile vs Desktop">Device breakdown.</canvas></div>
+          </div>
+        </div>
+
+        <!-- Impressions over time -->
+        <div class="chart-card" style="margin-bottom:1.5rem">
+          <div class="section-header"><div><div class="section-title">Impressions Over Time</div><div class="section-sub">Daily GBP profile views</div></div><span class="pill" style="background:rgba(66,133,244,0.12);color:#4285f4">GBP</span></div>
+          <div class="legend-row" style="margin-bottom:8px">
+            <div class="legend-item"><div class="legend-swatch" style="background:#4285f4"></div>Impressions</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:var(--green)"></div>Interactions</div>
+          </div>
+          <div style="position:relative;height:220px"><canvas id="gmbImpressionsChart" role="img" aria-label="GMB impressions over time">GMB impressions.</canvas></div>
+        </div>
+
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;font-size:12px;color:var(--muted);font-family:var(--font-mono);margin-bottom:1.5rem">
+          💡 Data exported from Agency Analytics · Google Business Profile integration · Both locations combined · Refresh the sheet in Agency Analytics to update
+        </div>
+
+      </div>
+
       <div id="sec-documents" style="display:none">
 
         <!-- Not logged in state -->
@@ -855,13 +933,14 @@ function deltaHTML(cur, prev, inverse) {
 
 function showSection(name, btn) {
   currentSection = name;
-  ['overview','traffic','search','pages','conversions','documents'].forEach(s => {
+  ['overview','traffic','search','pages','conversions','gmb','documents'].forEach(s => {
     const el=document.getElementById('sec-'+s);
     if(el) el.style.display=s===name?'block':'none';
   });
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
-  const titles={overview:'Dashboard',traffic:'Traffic',search:'Search Console',pages:'Top Pages',conversions:'Conversions',documents:'Documents'};
+  const titles={overview:'Dashboard',traffic:'Traffic',search:'Search Console',pages:'Top Pages',conversions:'Conversions',gmb:'Google Business',documents:'Documents'};
+  if(name==='gmb' && Object.keys(cachedData).length) renderGMB();
   document.getElementById('pageTitle').textContent=titles[name]||name;
   if(Object.keys(cachedData).length) renderSection(name);
 }
@@ -1000,14 +1079,14 @@ async function loadData() {
         orderBys:[{dimension:{dimensionName:'date'}}]
       })}).then(r=>r.json())
     ]);
-    const [wcData, npData, adSpendData] = await Promise.all([
+    const [wcData, npData, adSpendData, gmbData] = await Promise.all([
       loadWhatConverts(start, end),
       fetch(`/api/whatconverts/np-appointments?start_date=${start}&end_date=${end}`).then(r=>r.json()).catch(()=>({total:0,leads:[],by_source:{},by_type:{},by_date:{}})),
       fetch('/api/adspend').then(r=>r.json()).catch(()=>({rows:[],total:0,latest:null}))
     ]);
 
     document.getElementById('loadingText').textContent='Rendering…';
-    cachedData={cur,prev,ts,srcs,pages,devices,newUsers,bounceTs,gscSum,gscTs,gscQ,convEvents,callsTs,formsTs,textsTs,wcData,npData,adSpendData,start,end};
+    cachedData={cur,prev,ts,srcs,pages,devices,newUsers,bounceTs,gscSum,gscTs,gscQ,convEvents,callsTs,formsTs,textsTs,wcData,npData,adSpendData,gmbData,start,end};
     renderKPIs(); renderSection(currentSection);
     document.getElementById('loadingState').style.display='none';
     document.getElementById('dashboardWrap').style.display='block';
@@ -1703,6 +1782,64 @@ async function submitNewDoc() {
     const err = await res.json();
     showError(err.error || 'Failed to add document');
   }
+}
+
+// ── GMB render ───────────────────────────────────────────────────────────
+function renderGMB() {
+  const gmb = cachedData.gmbData || {};
+  const totals = gmb.totals || {};
+  const rows = gmb.rows || [];
+
+  document.getElementById('gmb-impressions').textContent = fmt(totals.impressions || 0);
+  document.getElementById('gmb-interactions').textContent = fmt(totals.interactions || 0);
+  document.getElementById('gmb-calls').textContent = fmt(totals.calls || 0);
+  document.getElementById('gmb-directions').textContent = fmt(totals.directions || 0);
+  document.getElementById('gmb-website-clicks').textContent = fmt(totals.website_clicks || 0);
+
+  // Search vs Maps donut
+  const searchTotal = (totals.desktop_search || 0) + (totals.mobile_search || 0);
+  const mapsTotal = (totals.desktop_maps || 0) + (totals.mobile_maps || 0);
+  const smColors = ['#4285f4', '#34a853'];
+  document.getElementById('gmbSearchMapsLegend').innerHTML = [
+    { label: 'Search', val: searchTotal, color: smColors[0] },
+    { label: 'Maps', val: mapsTotal, color: smColors[1] }
+  ].map(i => `<div class="legend-item"><div class="legend-swatch" style="background:${i.color}"></div>${i.label}: <strong style="color:var(--text);margin-left:3px">${fmt(i.val)}</strong></div>`).join('');
+  if (charts.gmbSearchMapsChart) charts.gmbSearchMapsChart.destroy();
+  charts.gmbSearchMapsChart = new Chart(document.getElementById('gmbSearchMapsChart'), {
+    type: 'doughnut',
+    data: { labels: ['Search', 'Maps'], datasets: [{ data: [searchTotal, mapsTotal], backgroundColor: smColors, borderWidth: 0, hoverOffset: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1e2128', borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1, titleColor: '#f0ede8', bodyColor: '#9ca3af', padding: 10 } } }
+  });
+
+  // Mobile vs Desktop donut
+  const mobileTotal = (totals.mobile_search || 0) + (totals.mobile_maps || 0);
+  const desktopTotal = (totals.desktop_search || 0) + (totals.desktop_maps || 0);
+  const devColors = ['#4285f4', '#fbbc04'];
+  document.getElementById('gmbDeviceLegend').innerHTML = [
+    { label: 'Mobile', val: mobileTotal, color: devColors[0] },
+    { label: 'Desktop', val: desktopTotal, color: devColors[1] }
+  ].map(i => `<div class="legend-item"><div class="legend-swatch" style="background:${i.color}"></div>${i.label}: <strong style="color:var(--text);margin-left:3px">${fmt(i.val)}</strong></div>`).join('');
+  if (charts.gmbDeviceChart) charts.gmbDeviceChart.destroy();
+  charts.gmbDeviceChart = new Chart(document.getElementById('gmbDeviceChart'), {
+    type: 'doughnut',
+    data: { labels: ['Mobile', 'Desktop'], datasets: [{ data: [mobileTotal, desktopTotal], backgroundColor: devColors, borderWidth: 0, hoverOffset: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1e2128', borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1, titleColor: '#f0ede8', bodyColor: '#9ca3af', padding: 10 } } }
+  });
+
+  // Impressions over time line chart
+  const labels = rows.map(r => { const d = r.date; return d.slice(5,7)+'/'+d.slice(8,10); });
+  if (charts.gmbImpressionsChart) charts.gmbImpressionsChart.destroy();
+  charts.gmbImpressionsChart = new Chart(document.getElementById('gmbImpressionsChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Impressions', data: rows.map(r => r.impressions), borderColor: '#4285f4', backgroundColor: 'rgba(66,133,244,0.07)', borderWidth: 2, pointRadius: 0, tension: 0.4, fill: true },
+        { label: 'Interactions', data: rows.map(r => r.interactions), borderColor: 'var(--green)', backgroundColor: 'rgba(58,143,212,0.04)', borderWidth: 2, pointRadius: 0, tension: 0.4, fill: false, borderDash: [5,3] }
+      ]
+    },
+    options: { ...JSON.parse(JSON.stringify(chartBase)) }
+  });
 }
 
 // Update showSection to handle documents
