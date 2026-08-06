@@ -19,6 +19,10 @@ const GSC_SITE = 'sc-domain:pennpain.com';
 const WC_PROFILE = '148479';
 const SHEET_ID = '1cXnqHBu9OJXA-TIemxTAm8tkKNDOMbY8hWgWlpbi3P4';
 const SHEET_TAB = 'dash data mtd';
+const AA_CLIENT_ID = 1827631;
+const AA_CAMPAIGN_ID = 1827631;
+const AA_ACCOUNT_ID = 201822;
+const AA_INTEGRATION_ID = 4832946;
 const REVIEW_COOKIE = 'pp_reviewer';
 
 // ── Supabase ───────────────────────────────────────────────────────────────
@@ -28,18 +32,15 @@ const supabase = createClient(
 );
 
 // ── Google auth (service account) ─────────────────────────────────────────
-const serviceAccountCreds = {
-  client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-  private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-};
-
 const gauth = new GoogleAuth({
-  credentials: serviceAccountCreds,
+  credentials: {
+    client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+  },
   scopes: [
     'https://www.googleapis.com/auth/analytics.readonly',
     'https://www.googleapis.com/auth/webmasters.readonly',
-    'https://www.googleapis.com/auth/spreadsheets.readonly',
-    'https://www.googleapis.com/auth/business.manage'
+    'https://www.googleapis.com/auth/spreadsheets.readonly'
   ]
 });
 
@@ -47,6 +48,12 @@ async function getGAToken() {
   const client = await gauth.getClient();
   const token = await client.getAccessToken();
   return token.token;
+}
+
+// ── Agency Analytics auth ──────────────────────────────────────────────────
+function getAAHeaders() {
+  const encoded = Buffer.from(`:${process.env.AGENCYANALYTICS_API_KEY}`).toString('base64');
+  return { Authorization: `Basic ${encoded}`, 'Content-Type': 'application/json' };
 }
 
 // ── Reviewer session helpers ───────────────────────────────────────────────
@@ -129,15 +136,12 @@ app.get('/api/whatconverts/np-appointments', async (req, res) => {
   try {
     const { start_date, end_date } = req.query;
     const token = Buffer.from(`${process.env.WHATCONVERTS_TOKEN}:${process.env.WHATCONVERTS_SECRET}`).toString('base64');
-    const reqParams = { profile_id: WC_PROFILE, start_date, end_date, quotable: 'yes', per_page: 100 };
-    console.log('NP appts request params:', JSON.stringify(reqParams));
     const response = await axios.get('https://app.whatconverts.com/api/v1/leads', {
       headers: { Authorization: `Basic ${token}` },
-      params: reqParams
+      params: { profile_id: WC_PROFILE, start_date, end_date, quotable: 'yes', per_page: 100 }
     });
     const leads = response.data.leads || [];
     const total = response.data.total_leads || 0;
-    console.log('NP appts response: total=', total, 'leads count=', leads.length);
     const sourceMap = {};
     leads.forEach(lead => {
       const source = lead.lead_source || lead.traffic_source || 'direct';
@@ -150,11 +154,6 @@ app.get('/api/whatconverts/np-appointments', async (req, res) => {
                   source ? source.charAt(0).toUpperCase() + source.slice(1) : 'Other';
       sourceMap[key] = (sourceMap[key] || 0) + 1;
     });
-    const typeMap = {};
-    leads.forEach(lead => {
-      const type = lead.lead_type || 'Other';
-      typeMap[type] = (typeMap[type] || 0) + 1;
-    });
     const dateMap = {};
     leads.forEach(lead => {
       if (lead.date_created) {
@@ -162,15 +161,13 @@ app.get('/api/whatconverts/np-appointments', async (req, res) => {
         dateMap[date] = (dateMap[date] || 0) + 1;
       }
     });
-    res.json({ total, leads: leads.slice(0, 20), by_source: sourceMap, by_type: typeMap, by_date: dateMap });
+    res.json({ total, leads: leads.slice(0, 20), by_source: sourceMap, by_date: dateMap });
   } catch (e) {
-    const errDetail = e.response?.data || e.message;
-    console.error('NP appointments error:', e.response?.status, JSON.stringify(errDetail));
-    res.json({ error: e.message, total: 0, leads: [], by_source: {}, by_type: {}, by_date: {} });
+    res.json({ error: e.message, total: 0, leads: [], by_source: {}, by_date: {} });
   }
 });
 
-// ── Google Sheets proxy (Ad Spend + NP Appointments) ──────────────────────
+// ── Google Sheets (Ad Spend + NP Appointments) ────────────────────────────
 app.get('/api/adspend', async (req, res) => {
   try {
     const authClient = await gauth.getClient();
@@ -200,70 +197,57 @@ app.get('/api/adspend', async (req, res) => {
       np: { this_month: npThisMonthTotal, future: npFutureTotal, total: npTotal }
     });
   } catch (e) {
-    console.error('Sheets error:', e.message, e.response?.data || '');
     res.json({ error: e.message, rows: [], total: 0, latest: null, np: null });
   }
 });
 
-// ── GBP Discovery (TEMPORARY — remove after getting location IDs) ──────────
-app.get('/api/gbp-discovery', async (req, res) => {
+// ── Google Business Profile (via Agency Analytics) ────────────────────────
+app.get('/api/gmb', async (req, res) => {
   try {
-    const client = await gauth.getClient();
-    const token = await client.getAccessToken();
-    const headers = { Authorization: `Bearer ${token.token}` };
+    const { start_date, end_date } = req.query;
+    const headers = getAAHeaders();
 
-    // Try candidate location IDs extracted from GBP profile URLs
-    const candidates = [
-      'locations/2010292799224206106',
-      'locations/3374609053579023698',
-      'locations/9393912307373584702',
-      'locations/18285798301489579963'
-    ];
+    // Fetch daily metrics
+    const metricsRes = await axios.post(
+      'https://apirequest.app/query',
+      {
+        account_id: AA_ACCOUNT_ID,
+        campaign_id: AA_CAMPAIGN_ID,
+        provider: 'google-my-business',
+        asset: 'location-analytics',
+        fields: ['date', 'impressions', 'interactions', 'call_clicks', 'direction_requests', 'website_clicks', 'impressions_desktop_search', 'impressions_mobile_search', 'impressions_desktop_maps', 'impressions_mobile_maps'],
+        filters: {
+          account_id: AA_ACCOUNT_ID,
+          campaign_id: AA_CAMPAIGN_ID,
+          integration_campaign_id: AA_INTEGRATION_ID,
+          start_date: start_date || new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0],
+          end_date: end_date || new Date().toISOString().split('T')[0]
+        },
+        group_by: ['date'],
+        sort: { field_name: 'date', direction: 'asc' }
+      },
+      { headers }
+    );
 
-    const results = [];
-    for (const locName of candidates) {
-      try {
-        const locRes = await axios.get(
-          `https://mybusinessbusinessinformation.googleapis.com/v1/${locName}?readMask=name,title,storefrontAddress`,
-          { headers }
-        );
-        results.push({ tried: locName, success: true, data: locRes.data });
-      } catch (e) {
-        results.push({ tried: locName, success: false, error: e.response?.data?.error?.message || e.message });
-      }
-    }
+    const rows = metricsRes.data || [];
 
-    // Also try performance API with date range to see if any work
-    const today = new Date();
-    const startDate = { year: today.getFullYear(), month: today.getMonth(), day: 1 };
-    const endDate = { year: today.getFullYear(), month: today.getMonth() + 1, day: today.getDate() };
+    // Aggregate totals
+    const totals = rows.reduce((acc, row) => {
+      acc.impressions += parseInt(row.impressions || 0);
+      acc.interactions += parseInt(row.interactions || 0);
+      acc.calls += parseInt(row.call_clicks || 0);
+      acc.directions += parseInt(row.direction_requests || 0);
+      acc.website_clicks += parseInt(row.website_clicks || 0);
+      acc.desktop_search += parseInt(row.impressions_desktop_search || 0);
+      acc.mobile_search += parseInt(row.impressions_mobile_search || 0);
+      acc.desktop_maps += parseInt(row.impressions_desktop_maps || 0);
+      acc.mobile_maps += parseInt(row.impressions_mobile_maps || 0);
+      return acc;
+    }, { impressions: 0, interactions: 0, calls: 0, directions: 0, website_clicks: 0, desktop_search: 0, mobile_search: 0, desktop_maps: 0, mobile_maps: 0 });
 
-    for (const locName of candidates) {
-      try {
-        const perfRes = await axios.get(
-          `https://businessprofileperformance.googleapis.com/v1/${locName}:fetchMultiDailyMetricsTimeSeries`,
-          {
-            headers,
-            params: {
-              'dailyMetrics': 'WEBSITE_CLICKS',
-              'dailyRange.start_date.year': startDate.year,
-              'dailyRange.start_date.month': startDate.month,
-              'dailyRange.start_date.day': startDate.day,
-              'dailyRange.end_date.year': endDate.year,
-              'dailyRange.end_date.month': endDate.month,
-              'dailyRange.end_date.day': endDate.day,
-            }
-          }
-        );
-        results.push({ tried: locName + '_perf', success: true, data: perfRes.data });
-      } catch (e) {
-        results.push({ tried: locName + '_perf', success: false, error: e.response?.data?.error?.message || e.message });
-      }
-    }
-
-    res.json(results);
+    res.json({ rows, totals });
   } catch (e) {
-    res.status(500).json({ error: e.response?.data?.error || e.message });
+    res.json({ error: e.message, rows: [], totals: { impressions: 0, interactions: 0, calls: 0, directions: 0, website_clicks: 0, desktop_search: 0, mobile_search: 0, desktop_maps: 0, mobile_maps: 0 } });
   }
 });
 
@@ -307,7 +291,6 @@ app.get('/auth/callback', async (req, res) => {
     res.cookie(REVIEW_COOKIE, signSession({ email, name: userRes.data.name, picture: userRes.data.picture, role: reviewer.role }), COOKIE_OPTS);
     res.redirect('/?section=documents');
   } catch (e) {
-    console.error('Review auth error:', e.message);
     res.redirect(`/?review_error=${encodeURIComponent('Authentication failed')}`);
   }
 });
