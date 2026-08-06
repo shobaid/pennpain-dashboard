@@ -253,7 +253,8 @@ app.get('/api/gmb', async (req, res) => {
 
     res.json({ rows, totals });
   } catch (e) {
-    res.json({ error: e.message, rows: [], totals: { impressions: 0, interactions: 0, calls: 0, directions: 0, website_clicks: 0, desktop_search: 0, mobile_search: 0, desktop_maps: 0, mobile_maps: 0 } });
+    const detail = e.response?.data || e.message;
+    res.json({ error: e.message, detail, rows: [], totals: { impressions: 0, interactions: 0, calls: 0, directions: 0, website_clicks: 0, desktop_search: 0, mobile_search: 0, desktop_maps: 0, mobile_maps: 0 } });
   }
 });
 
