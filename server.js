@@ -205,33 +205,28 @@ app.get('/api/adspend', async (req, res) => {
 app.get('/api/gmb', async (req, res) => {
   try {
     const { start_date, end_date } = req.query;
+    const startDate = start_date || new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
+    const endDate = end_date || new Date().toISOString().split('T')[0];
     const headers = getAAHeaders();
 
-    // Fetch daily metrics
-    const metricsRes = await axios.post(
-      'https://apirequest.app/query',
-      {
-        account_id: AA_ACCOUNT_ID,
-        campaign_id: AA_CAMPAIGN_ID,
-        provider: 'google-my-business',
-        asset: 'location-analytics',
-        fields: ['date', 'impressions', 'interactions', 'call_clicks', 'direction_requests', 'website_clicks', 'impressions_desktop_search', 'impressions_mobile_search', 'impressions_desktop_maps', 'impressions_mobile_maps'],
-        filters: {
-          account_id: AA_ACCOUNT_ID,
-          campaign_id: AA_CAMPAIGN_ID,
-          integration_campaign_id: AA_INTEGRATION_ID,
-          start_date: start_date || new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0],
-          end_date: end_date || new Date().toISOString().split('T')[0]
-        },
-        group_by: ['date'],
-        sort: { field_name: 'date', direction: 'asc' }
+    const body = {
+      campaign_id: AA_CAMPAIGN_ID,
+      provider: 'google-my-business',
+      asset: 'location-analytics',
+      fields: ['date', 'impressions', 'interactions', 'call_clicks', 'direction_requests', 'website_clicks', 'impressions_desktop_search', 'impressions_mobile_search', 'impressions_desktop_maps', 'impressions_mobile_maps'],
+      filters: {
+        integration_campaign_id: AA_INTEGRATION_ID,
+        start_date: startDate,
+        end_date: endDate
       },
-      { headers }
-    );
+      group_by: ['date'],
+      sort: { field_name: 'date', direction: 'asc' },
+      limit: 200
+    };
 
-    const rows = metricsRes.data || [];
+    const metricsRes = await axios.post('https://apirequest.app/query', body, { headers });
+    const rows = Array.isArray(metricsRes.data) ? metricsRes.data : [];
 
-    // Aggregate totals
     const totals = rows.reduce((acc, row) => {
       acc.impressions += parseInt(row.impressions || 0);
       acc.interactions += parseInt(row.interactions || 0);
