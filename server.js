@@ -346,3 +346,28 @@ app.post('/api/documents/:id/comments', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`\n✅ PennPain Dashboard running at http://localhost:${PORT}\n`));
 module.exports = app;
+
+// TEMPORARY — remove after getting location IDs
+app.get('/api/gbp-discovery', async (req, res) => {
+  try {
+    const client = await gauth.getClient();
+    const token = await client.getAccessToken();
+    const headers = { Authorization: `Bearer ${token.token}` };
+    const accountsRes = await axios.get(
+      'https://mybusinessaccountmanagement.googleapis.com/v1/accounts',
+      { headers }
+    );
+    const accounts = accountsRes.data.accounts || [];
+    const results = [];
+    for (const account of accounts) {
+      const locRes = await axios.get(
+        `https://mybusinessbusinessinformation.googleapis.com/v1/${account.name}/locations?readMask=name,title,storefrontAddress`,
+        { headers }
+      );
+      results.push({ account: account.name, locations: locRes.data.locations || [] });
+    }
+    res.json(results);
+  } catch (e) {
+    res.status(500).json({ error: e.response?.data?.error || e.message });
+  }
+});
