@@ -209,15 +209,26 @@ app.get('/api/gmb', async (req, res) => {
     const endDate = end_date || new Date().toISOString().split('T')[0];
     const headers = getAAHeaders();
 
+    // Exact format matching Agency Analytics API playground
     const body = {
+      account_id: AA_ACCOUNT_ID,
       campaign_id: AA_CAMPAIGN_ID,
       provider: 'google-my-business',
       asset: 'location-analytics',
       fields: ['date', 'impressions', 'interactions', 'call_clicks', 'direction_requests', 'website_clicks', 'impressions_desktop_search', 'impressions_mobile_search', 'impressions_desktop_maps', 'impressions_mobile_maps'],
       filters: {
+        account_id: AA_ACCOUNT_ID,
+        campaign_id: AA_CAMPAIGN_ID,
         integration_campaign_id: AA_INTEGRATION_ID,
         start_date: startDate,
-        end_date: endDate
+        end_date: endDate,
+        compare_start_date: false,
+        compare_end_date: false,
+        location: false,
+        ai_summary: false,
+        date_interval: 'automatic',
+        anomaly_detection: false,
+        forecasting: false
       },
       group_by: ['date'],
       sort: { field_name: 'date', direction: 'asc' },
