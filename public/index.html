@@ -1082,7 +1082,8 @@ async function loadData() {
     const [wcData, npData, adSpendData, gmbData] = await Promise.all([
       loadWhatConverts(start, end),
       fetch(`/api/whatconverts/np-appointments?start_date=${start}&end_date=${end}`).then(r=>r.json()).catch(()=>({total:0,leads:[],by_source:{},by_type:{},by_date:{}})),
-      fetch('/api/adspend').then(r=>r.json()).catch(()=>({rows:[],total:0,latest:null}))
+      fetch('/api/adspend').then(r=>r.json()).catch(()=>({rows:[],total:0,latest:null})),
+      fetch(`/api/gmb?start_date=${start}&end_date=${end}`).then(r=>r.json()).catch(()=>({rows:[],totals:{}}))
     ]);
 
     document.getElementById('loadingText').textContent='Rendering…';
