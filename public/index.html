@@ -824,16 +824,21 @@ const COLORS = ['#3a8fd4','#4d9fff','#f59e0b','#a78bfa','#f87171','#06b6d4','#84
 function getDates() {
   let start, end;
   if (CUSTOM_START && CUSTOM_END) {
-    start = new Date(CUSTOM_START + 'T00:00:00');
-    end = new Date(CUSTOM_END + 'T00:00:00');
+    // Use string directly to avoid timezone offset shifting dates
+    const startStr = CUSTOM_START;
+    const endStr = CUSTOM_END;
+    const diffDays = Math.max(1, Math.round((new Date(endStr) - new Date(startStr))/(1000*60*60*24)));
+    const prevEndDate = new Date(startStr); prevEndDate.setDate(prevEndDate.getDate()-1);
+    const prevStartDate = new Date(prevEndDate); prevStartDate.setDate(prevStartDate.getDate()-diffDays);
+    return { start:startStr, end:endStr, pStart:dateStr(prevEndDate), pEnd:dateStr(prevEndDate) };
   } else {
     end = new Date();
     start = new Date(); start.setDate(start.getDate()-DAYS);
+    const diffDays = Math.max(1, Math.round((end-start)/(1000*60*60*24)));
+    const prevEnd = new Date(start); prevEnd.setDate(prevEnd.getDate()-1);
+    const prevStart = new Date(prevEnd); prevStart.setDate(prevStart.getDate()-diffDays);
+    return { start:dateStr(start), end:dateStr(end), pStart:dateStr(prevStart), pEnd:dateStr(prevEnd) };
   }
-  const diffDays = Math.max(1, Math.round((end-start)/(1000*60*60*24)));
-  const prevEnd = new Date(start); prevEnd.setDate(prevEnd.getDate()-1);
-  const prevStart = new Date(prevEnd); prevStart.setDate(prevStart.getDate()-diffDays);
-  return { start:dateStr(start), end:dateStr(end), pStart:dateStr(prevStart), pEnd:dateStr(prevEnd) };
 }
 
 function toggleCalendar() {
