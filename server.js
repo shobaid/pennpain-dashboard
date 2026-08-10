@@ -164,24 +164,41 @@ app.get('/api/adspend', async (req, res) => {
     const sheets = google.sheets({ version: 'v4', auth: authClient });
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `${SHEET_TAB}!A:E`
+      range: `${SHEET_TAB}!A:G`
     });
     const rows = response.data.values || [];
     if (rows.length < 2) return res.json({ rows: [], total: 0, latest: null, np: null });
+
+    // Columns: A=Date label, B=Week Start, C=Week End, D=Ad Spend, E=NP This Month, F=NP Future, G=NP Total
     const data = rows.slice(1).map(row => ({
       date: row[0] || '',
-      ad_spend: parseFloat((row[1] || '0').toString().replace(/[$,]/g, '')) || 0,
-      np_this_month: parseInt((row[2] || '0').toString().replace(/[^0-9]/g, '')) || 0,
-      np_future: parseInt((row[3] || '0').toString().replace(/[^0-9]/g, '')) || 0,
-      np_total: parseInt((row[4] || '0').toString().replace(/[^0-9]/g, '')) || 0
-    })).filter(r => r.date);
-    const total = data.reduce((sum, r) => sum + r.ad_spend, 0);
+      week_start: row[1] || '',
+      week_end: row[2] || '',
+      ad_spend: parseFloat((row[3] || '0').toString().replace(/[$,]/g, '')) || 0,
+      np_this_month: parseInt((row[4] || '0').toString().replace(/[^0-9]/g, '')) || 0,
+      np_future: parseInt((row[5] || '0').toString().replace(/[^0-9]/g, '')) || 0,
+      np_total: parseInt((row[6] || '0').toString().replace(/[^0-9]/g, '')) || 0
+    })).filter(r => r.date && r.week_end);
+
+    // Get date range from query params for filtering
+    const { start_date, end_date } = req.query;
+
+    // Filter rows by week_end date falling within the selected date range
+    const filtered = (start_date && end_date)
+      ? data.filter(r => r.week_end >= start_date && r.week_end <= end_date)
+      : data;
+
+    const total = filtered.reduce((sum, r) => sum + r.ad_spend, 0);
     const latest = data[0] || null;
-    const npThisMonthTotal = data.reduce((s, r) => s + (r.np_this_month || 0), 0);
-    const npFutureTotal = data.reduce((s, r) => s + (r.np_future || 0), 0);
-    const npTotal = data.reduce((s, r) => s + (r.np_total || 0), 0);
+
+    // Sum NP columns only for filtered rows
+    const npThisMonthTotal = filtered.reduce((s, r) => s + (r.np_this_month || 0), 0);
+    const npFutureTotal = filtered.reduce((s, r) => s + (r.np_future || 0), 0);
+    const npTotal = filtered.reduce((s, r) => s + (r.np_total || 0), 0);
+
     res.json({
-      rows: data,
+      rows: filtered,
+      all_rows: data,
       total: Math.round(total * 100) / 100,
       latest,
       np: { this_month: npThisMonthTotal, future: npFutureTotal, total: npTotal }
@@ -223,10 +240,12 @@ app.get('/api/gmb', async (req, res) => {
       impressions_mobile_search: parseInt((row[9] || '0').replace(/[^0-9]/g, '')) || 0
     })).filter(r => r.date && r.date !== 'Date');
 
-    // Filter by date range if provided
-    const filtered = (start_date && end_date)
-      ? data.filter(r => r.date >= start_date && r.date <= end_date)
-      : data.filter(r => r.impressions > 0); // exclude future empty rows
+    // Filter by date range and exclude zero rows (future dates with no data yet)
+    const filtered = data.filter(r => {
+      if (r.impressions === 0 && r.interactions === 0 && r.calls === 0) return false;
+      if (start_date && end_date) return r.date >= start_date && r.date <= end_date;
+      return true;
+    });
 
     // Aggregate totals
     const totals = filtered.reduce((acc, row) => {
