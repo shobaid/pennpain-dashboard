@@ -36,7 +36,8 @@ const gauth = new GoogleAuth({
   scopes: [
     'https://www.googleapis.com/auth/analytics.readonly',
     'https://www.googleapis.com/auth/webmasters.readonly',
-    'https://www.googleapis.com/auth/spreadsheets.readonly'
+    'https://www.googleapis.com/auth/spreadsheets.readonly',
+    'https://www.googleapis.com/auth/business.manage'
   ]
 });
 
@@ -264,6 +265,66 @@ app.get('/api/gmb', async (req, res) => {
     res.json({ rows: filtered, totals });
   } catch (e) {
     res.json({ error: e.message, rows: [], totals: { impressions: 0, interactions: 0, website_clicks: 0, calls: 0, directions: 0, desktop_search: 0, mobile_search: 0, desktop_maps: 0, mobile_maps: 0 } });
+  }
+});
+
+// ── GBP API Test (temporary) ──────────────────────────────────────────────
+app.get('/api/gbp-test', async (req, res) => {
+  const results = {};
+  try {
+    const client = await gauth.getClient();
+    const token = await client.getAccessToken();
+    const headers = { Authorization: `Bearer ${token.token}` };
+    const { start_date = '2026-07-01', end_date = '2026-07-31' } = req.query;
+
+    // Test 1: List accounts
+    try {
+      const accountsRes = await axios.get(
+        'https://mybusinessaccountmanagement.googleapis.com/v1/accounts',
+        { headers }
+      );
+      results.accounts = accountsRes.data;
+    } catch (e) {
+      results.accounts_error = e.response?.data?.error || e.message;
+    }
+
+    // Test 2: Business Profile Performance API directly with known location IDs
+    const locationCandidates = [
+      'locations/2010292799224206106',
+      'locations/3374609053579023698',
+      'locations/9393912307373584702',
+      'locations/18285798301489579963'
+    ];
+
+    results.performance_tests = [];
+    for (const loc of locationCandidates) {
+      try {
+        const startParts = start_date.split('-');
+        const endParts = end_date.split('-');
+        const perfRes = await axios.get(
+          `https://businessprofileperformance.googleapis.com/v1/${loc}:fetchMultiDailyMetricsTimeSeries`,
+          {
+            headers,
+            params: {
+              'dailyMetrics': ['BUSINESS_IMPRESSIONS_DESKTOP_MAPS', 'BUSINESS_IMPRESSIONS_DESKTOP_SEARCH', 'BUSINESS_IMPRESSIONS_MOBILE_MAPS', 'BUSINESS_IMPRESSIONS_MOBILE_SEARCH', 'CALL_CLICKS', 'WEBSITE_CLICKS', 'BUSINESS_DIRECTION_REQUESTS'].join(','),
+              'dailyRange.start_date.year': startParts[0],
+              'dailyRange.start_date.month': parseInt(startParts[1]),
+              'dailyRange.start_date.day': parseInt(startParts[2]),
+              'dailyRange.end_date.year': endParts[0],
+              'dailyRange.end_date.month': parseInt(endParts[1]),
+              'dailyRange.end_date.day': parseInt(endParts[2]),
+            }
+          }
+        );
+        results.performance_tests.push({ location: loc, success: true, data: perfRes.data });
+      } catch (e) {
+        results.performance_tests.push({ location: loc, success: false, error: e.response?.data?.error?.message || e.message, status: e.response?.status });
+      }
+    }
+
+    res.json(results);
+  } catch (e) {
+    res.json({ fatal_error: e.message, partial: results });
   }
 });
 
