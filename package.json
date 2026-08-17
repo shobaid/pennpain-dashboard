@@ -17,6 +17,7 @@
     "express": "^5.2.1",
     "google-auth-library": "^10.9.0",
     "googleapis": "^173.0.0",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "bcryptjs": "^2.4.3"
   }
 }
