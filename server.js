@@ -7,6 +7,7 @@ const cookieParser = require('cookie-parser');
 const { GoogleAuth } = require('google-auth-library');
 const { google } = require('googleapis');
 const { createClient } = require('@supabase/supabase-js');
+const bcrypt = require('bcryptjs');
 const path = require('path');
 
 const app = express();
@@ -20,6 +21,7 @@ const WC_PROFILE = '148479';
 const SHEET_ID = '1cXnqHBu9OJXA-TIemxTAm8tkKNDOMbY8hWgWlpbi3P4';
 const SHEET_TAB = 'dash data mtd';
 const REVIEW_COOKIE = 'pp_reviewer';
+const DASH_COOKIE = 'pp_dashboard';
 
 // ── Supabase ───────────────────────────────────────────────────────────────
 const supabase = createClient(
@@ -326,6 +328,56 @@ app.get('/api/gbp-test', async (req, res) => {
   } catch (e) {
     res.json({ fatal_error: e.message, partial: results });
   }
+});
+
+// ── Dashboard Auth ────────────────────────────────────────────────────────
+app.post('/auth/dashboard/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+
+    const { data: user, error } = await supabase
+      .from('dashboard_users')
+      .select('*')
+      .ilike('email', email.trim())
+      .maybeSingle();
+
+    if (error || !user) return res.status(401).json({ error: 'Invalid email or password' });
+
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Invalid email or password' });
+
+    const token = jwt.sign(
+      { email: user.email, name: user.name, role: user.role },
+      process.env.SESSION_SECRET || 'pennpain-secret',
+      { expiresIn: '30d' }
+    );
+
+    res.cookie(DASH_COOKIE, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000
+    });
+
+    res.json({ ok: true, user: { email: user.email, name: user.name, role: user.role } });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/auth/dashboard/me', (req, res) => {
+  try {
+    const token = req.cookies?.[DASH_COOKIE];
+    if (!token) return res.json({ authenticated: false });
+    const user = jwt.verify(token, process.env.SESSION_SECRET || 'pennpain-secret');
+    res.json({ authenticated: true, user });
+  } catch { res.json({ authenticated: false }); }
+});
+
+app.post('/auth/dashboard/logout', (req, res) => {
+  res.clearCookie(DASH_COOKIE);
+  res.json({ ok: true });
 });
 
 // ── Review Auth: start OAuth ───────────────────────────────────────────────

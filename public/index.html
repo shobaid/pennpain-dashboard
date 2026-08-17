@@ -253,6 +253,35 @@ body { font-family: var(--font-body); background: var(--bg); color: var(--text);
 }
 @media (min-width: 901px) { .hamburger { display: none !important; } }
 @media (max-width: 600px) { .stats-grid { grid-template-columns: 1fr 1fr; } .content { padding: 1rem; } }
+
+/* ── Dashboard Login ── */
+#dashLoginWrap {
+  display: none; position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg); align-items: center; justify-content: center;
+}
+#dashLoginWrap.show { display: flex; }
+.dash-login-card {
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 2.5rem; width: 100%;
+  max-width: 400px; margin: 1rem; text-align: center;
+  animation: fadeUp 0.3s ease both;
+}
+.dash-login-logo { margin-bottom: 1.5rem; }
+.dash-login-logo img { max-width: 160px; height: auto; filter: brightness(0) invert(1); }
+.dash-login-title { font-family: var(--font-display); font-size: 22px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 6px; }
+.dash-login-sub { font-size: 13px; color: var(--muted); margin-bottom: 2rem; }
+.dash-login-field { margin-bottom: 12px; text-align: left; }
+.dash-login-field label { display: block; font-size: 10.5px; font-weight: 600; font-family: var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+.dash-login-field input { width: 100%; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 10px 14px; font-family: var(--font-body); font-size: 14px; color: var(--text); outline: none; transition: border-color 0.15s; }
+.dash-login-field input:focus { border-color: var(--green); }
+.dash-login-btn { width: 100%; background: var(--green); color: #fff; border: none; border-radius: var(--radius-sm); padding: 12px; font-family: var(--font-body); font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px; transition: opacity 0.15s; }
+.dash-login-btn:hover { opacity: 0.85; }
+.dash-login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.dash-login-err { font-size: 12px; color: var(--red, #f87171); margin-top: 10px; display: none; }
+.dash-user-chip { display: flex; align-items: center; gap: 8px; background: var(--bg3); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px 4px 6px; cursor: pointer; transition: background 0.15s; }
+.dash-user-chip:hover { background: var(--bg4, #1e2128); }
+.dash-user-avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--green2); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--green); font-family: var(--font-display); }
+.dash-user-name { font-size: 12px; font-weight: 500; color: var(--text); }
 </style>
 </head>
 <body>
@@ -330,6 +359,10 @@ body { font-family: var(--font-body); background: var(--bg); color: var(--text);
       </div>
     </div>
     <div class="topbar-right">
+      <div class="dash-user-chip" id="dashUserChip" onclick="dashLogout()" title="Click to sign out" style="display:none">
+        <div class="dash-user-avatar" id="dashUserAvatar">?</div>
+        <span class="dash-user-name" id="dashUserName">–</span>
+      </div>
       <div class="date-tabs" id="dateTabs">
         <button class="date-tab" onclick="setDays(7,this)">1 Week</button>
         <button class="date-tab active" onclick="setDays(30,this)">1 Month</button>
@@ -1874,8 +1907,65 @@ showSection = function(name, btn) {
   }
 })();
 
-// Load data immediately - no auth needed
-loadData();
+// ── Dashboard Auth ───────────────────────────────────────────────────────
+async function dashLogin() {
+  const email = document.getElementById('dashEmail').value.trim();
+  const password = document.getElementById('dashPassword').value;
+  const btn = document.getElementById('dashLoginBtn');
+  const err = document.getElementById('dashLoginErr');
+
+  if (!email || !password) { err.textContent = 'Please enter your email and password'; err.style.display = 'block'; return; }
+
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  err.style.display = 'none';
+
+  try {
+    const res = await fetch('/auth/dashboard/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    showDashboard(data.user);
+  } catch (e) {
+    err.textContent = e.message;
+    err.style.display = 'block';
+  }
+  btn.disabled = false; btn.textContent = 'Sign In';
+}
+
+function showDashboard(user) {
+  document.getElementById('dashLoginWrap').classList.remove('show');
+  const chip = document.getElementById('dashUserChip');
+  const avatar = document.getElementById('dashUserAvatar');
+  const name = document.getElementById('dashUserName');
+  chip.style.display = 'flex';
+  avatar.textContent = (user.name || user.email).slice(0, 2).toUpperCase();
+  name.textContent = user.name || user.email;
+  loadData();
+}
+
+async function dashLogout() {
+  if (!confirm('Sign out of the dashboard?')) return;
+  await fetch('/auth/dashboard/logout', { method: 'POST' });
+  document.getElementById('dashLoginWrap').classList.add('show');
+  document.getElementById('dashUserChip').style.display = 'none';
+  document.getElementById('dashboardWrap').style.display = 'none';
+  document.getElementById('dashEmail').value = '';
+  document.getElementById('dashPassword').value = '';
+}
+
+// Check auth on load
+(async () => {
+  const res = await fetch('/auth/dashboard/me');
+  const data = await res.json();
+  if (data.authenticated) {
+    showDashboard(data.user);
+  } else {
+    document.getElementById('dashLoginWrap').classList.add('show');
+  }
+})();
 
 // ── Mobile nav ────────────────────────────────────────────────────────────
 function toggleMobileNav() {
