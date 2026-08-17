@@ -287,6 +287,26 @@ body { font-family: var(--font-body); background: var(--bg); color: var(--text);
 <body>
 
 <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileNav()"></div>
+<div id="dashLoginWrap">
+  <div class="dash-login-card">
+    <div class="dash-login-logo">
+      <div style="font-size:22px;font-weight:700;color:var(--green);letter-spacing:-0.3px;font-family:var(--font-display)">Momentum Digital</div>
+    </div>
+    <div class="dash-login-title">PennPain Dashboard</div>
+    <div class="dash-login-sub">Sign in to access the analytics dashboard</div>
+    <div class="dash-login-field">
+      <label>Email</label>
+      <input type="email" id="dashEmail" placeholder="your@email.com" onkeydown="if(event.key==='Enter')dashLogin()">
+    </div>
+    <div class="dash-login-field">
+      <label>Password</label>
+      <input type="password" id="dashPassword" placeholder="••••••••" onkeydown="if(event.key==='Enter')dashLogin()">
+    </div>
+    <button class="dash-login-btn" id="dashLoginBtn" onclick="dashLogin()">Sign In</button>
+    <div class="dash-login-err" id="dashLoginErr"></div>
+  </div>
+</div>
+
 <aside class="sidebar" id="mainSidebar">
   <div class="sidebar-logo" style="padding:1rem 1.25rem">
     <a href="https://www.needmomentum.com" target="_blank" rel="noopener" style="display:block;width:100%">
