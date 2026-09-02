@@ -136,8 +136,10 @@ app.get('/api/whatconverts/np-appointments', async (req, res) => {
       params: { profile_id: WC_PROFILE, start_date, end_date, quotable: 'yes', per_page: 100, page: 1 }
     });
     const total = firstRes.data.total_leads || 0;
-    const totalPages = firstRes.data.total_pages || 1;
     let leads = firstRes.data.leads || [];
+
+    // Calculate total pages from total_leads (WhatConverts may not return total_pages)
+    const totalPages = Math.ceil(total / 100);
 
     // Fetch remaining pages if needed
     if (totalPages > 1) {
