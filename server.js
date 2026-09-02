@@ -129,12 +129,28 @@ app.get('/api/whatconverts/np-appointments', async (req, res) => {
   try {
     const { start_date, end_date } = req.query;
     const token = Buffer.from(`${process.env.WHATCONVERTS_TOKEN}:${process.env.WHATCONVERTS_SECRET}`).toString('base64');
-    const response = await axios.get('https://app.whatconverts.com/api/v1/leads', {
+
+    // Fetch first page
+    const firstRes = await axios.get('https://app.whatconverts.com/api/v1/leads', {
       headers: { Authorization: `Basic ${token}` },
-      params: { profile_id: WC_PROFILE, start_date, end_date, quotable: 'yes', per_page: 100 }
+      params: { profile_id: WC_PROFILE, start_date, end_date, quotable: 'yes', per_page: 100, page: 1 }
     });
-    const leads = response.data.leads || [];
-    const total = response.data.total_leads || 0;
+    const total = firstRes.data.total_leads || 0;
+    const totalPages = firstRes.data.total_pages || 1;
+    let leads = firstRes.data.leads || [];
+
+    // Fetch remaining pages if needed
+    if (totalPages > 1) {
+      const pageRequests = [];
+      for (let p = 2; p <= totalPages; p++) {
+        pageRequests.push(axios.get('https://app.whatconverts.com/api/v1/leads', {
+          headers: { Authorization: `Basic ${token}` },
+          params: { profile_id: WC_PROFILE, start_date, end_date, quotable: 'yes', per_page: 100, page: p }
+        }));
+      }
+      const pageResults = await Promise.all(pageRequests);
+      pageResults.forEach(r => { leads = leads.concat(r.data.leads || []); });
+    }
     const sourceMap = {};
     leads.forEach(lead => {
       const source = lead.lead_source || lead.traffic_source || 'direct';
