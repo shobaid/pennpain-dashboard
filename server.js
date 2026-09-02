@@ -138,8 +138,9 @@ app.get('/api/whatconverts/np-appointments', async (req, res) => {
     const total = firstRes.data.total_leads || 0;
     let leads = firstRes.data.leads || [];
 
-    // Calculate total pages from total_leads (WhatConverts may not return total_pages)
-    const totalPages = Math.ceil(total / 100);
+    // WhatConverts returns actual per_page from the response — use that to calculate pages
+    const actualPerPage = leads.length || 20;
+    const totalPages = actualPerPage > 0 ? Math.ceil(total / actualPerPage) : 1;
 
     // Fetch remaining pages if needed
     if (totalPages > 1) {
