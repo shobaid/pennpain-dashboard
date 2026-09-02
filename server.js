@@ -151,8 +151,17 @@ app.get('/api/whatconverts/np-appointments', async (req, res) => {
       const pageResults = await Promise.all(pageRequests);
       pageResults.forEach(r => { leads = leads.concat(r.data.leads || []); });
     }
+    // Deduplicate by lead_id to avoid double-counting across pages
+    const seen = new Set();
+    const uniqueLeads = leads.filter(lead => {
+      const id = lead.lead_id || lead.id;
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+
     const sourceMap = {};
-    leads.forEach(lead => {
+    uniqueLeads.forEach(lead => {
       const source = lead.lead_source || lead.traffic_source || 'direct';
       const medium = lead.lead_medium || lead.traffic_medium || 'none';
       const key = medium === 'cpc' ? 'Google Ads' :
@@ -164,13 +173,13 @@ app.get('/api/whatconverts/np-appointments', async (req, res) => {
       sourceMap[key] = (sourceMap[key] || 0) + 1;
     });
     const dateMap = {};
-    leads.forEach(lead => {
+    uniqueLeads.forEach(lead => {
       if (lead.date_created) {
         const date = lead.date_created.split('T')[0];
         dateMap[date] = (dateMap[date] || 0) + 1;
       }
     });
-    res.json({ total, leads: leads.slice(0, 20), by_source: sourceMap, by_date: dateMap });
+    res.json({ total, leads: uniqueLeads.slice(0, 20), by_source: sourceMap, by_date: dateMap });
   } catch (e) {
     res.json({ error: e.message, total: 0, leads: [], by_source: {}, by_date: {} });
   }
