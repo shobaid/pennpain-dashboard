@@ -88,7 +88,14 @@ app.post('/api/ga4', async (req, res) => {
     );
     res.json(response.data);
   } catch (e) {
-    res.status(e.response?.status || 500).json({ error: e.response?.data?.error?.message || e.message });
+    const detail = {
+      message: e.message,
+      response: e.response?.data,
+      status: e.response?.status,
+      stack: e.stack?.split('\n').slice(0, 5)
+    };
+    console.error('GA4 error:', JSON.stringify(detail));
+    res.status(e.response?.status || 500).json({ error: detail.message, detail });
   }
 });
 
@@ -313,7 +320,8 @@ app.get('/api/debug-key', (req, res) => {
     hasEscaped: k.includes('\\n'),
     start: k.slice(0, 60),
     end: k.slice(-60),
-    lineCount: k.split('\n').length
+    lineCount: k.split('\n').length,
+    email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '(not set)'
   });
 });
 
