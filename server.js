@@ -16,7 +16,7 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const GA4_PROPERTY = 'properties/486245473';
-const GSC_SITE = 'sc-domain:pennpain.com';
+const GSC_SITE = 'https://pennpain.com/';
 const WC_PROFILE = '148479';
 const SHEET_ID = '1cXnqHBu9OJXA-TIemxTAm8tkKNDOMbY8hWgWlpbi3P4';
 const SHEET_TAB = 'dash data mtd';
