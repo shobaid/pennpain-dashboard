@@ -42,6 +42,10 @@ const gauth = new GoogleAuth({
   ]
 });
 
+console.log('KEY_START:', process.env.GOOGLE_PRIVATE_KEY?.slice(0, 50));
+console.log('KEY_HAS_NEWLINES:', process.env.GOOGLE_PRIVATE_KEY?.includes('\n'));
+console.log('KEY_HAS_ESCAPED:', process.env.GOOGLE_PRIVATE_KEY?.includes('\\n'));
+
 async function getGAToken() {
   const client = await gauth.getClient();
   const token = await client.getAccessToken();
