@@ -304,6 +304,19 @@ app.get('/api/gmb', async (req, res) => {
   }
 });
 
+// ── Debug key format ──────────────────────────────────────────────────────
+app.get('/api/debug-key', (req, res) => {
+  const k = process.env.GOOGLE_PRIVATE_KEY || '';
+  res.json({
+    length: k.length,
+    hasNewlines: k.includes('\n'),
+    hasEscaped: k.includes('\\n'),
+    start: k.slice(0, 60),
+    end: k.slice(-60),
+    lineCount: k.split('\n').length
+  });
+});
+
 // ── GBP API Test (temporary) ──────────────────────────────────────────────
 app.get('/api/gbp-test', async (req, res) => {
   const results = {};
