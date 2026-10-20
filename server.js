@@ -38,8 +38,7 @@ const gauth = new GoogleAuth({
   scopes: [
     'https://www.googleapis.com/auth/analytics.readonly',
     'https://www.googleapis.com/auth/webmasters.readonly',
-    'https://www.googleapis.com/auth/spreadsheets.readonly',
-    'https://www.googleapis.com/auth/business.manage'
+    'https://www.googleapis.com/auth/spreadsheets.readonly'
   ]
 });
 
