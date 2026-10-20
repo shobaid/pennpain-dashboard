@@ -33,7 +33,16 @@ const supabase = createClient(
 const gauth = new GoogleAuth({
   credentials: {
     client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+    private_key: (() => {
+      const k = process.env.GOOGLE_PRIVATE_KEY;
+      if (!k) return '';
+      if (k.includes('\n')) return k;
+      if (k.includes('\\n')) return k.replace(/\\n/g, '\n');
+      // flat key with no line breaks at all — reconstruct PEM format
+      const body = k.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----/g, '').replace(/\s/g, '');
+      const lines = body.match(/.{1,64}/g) || [];
+      return `-----BEGIN PRIVATE KEY-----\n${lines.join('\n')}\n-----END PRIVATE KEY-----\n`;
+    })()
   },
   scopes: [
     'https://www.googleapis.com/auth/analytics.readonly',
@@ -42,9 +51,6 @@ const gauth = new GoogleAuth({
   ]
 });
 
-console.log('KEY_START:', process.env.GOOGLE_PRIVATE_KEY?.slice(0, 50));
-console.log('KEY_HAS_NEWLINES:', process.env.GOOGLE_PRIVATE_KEY?.includes('\n'));
-console.log('KEY_HAS_ESCAPED:', process.env.GOOGLE_PRIVATE_KEY?.includes('\\n'));
 
 async function getGAToken() {
   const client = await gauth.getClient();
