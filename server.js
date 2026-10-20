@@ -31,17 +31,18 @@ const supabase = createClient(
 
 // ── Google auth (service account) ─────────────────────────────────────────
 const gauth = new GoogleAuth({
-  credentials: {
-    type: 'service_account',
-    client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
-    private_key: (() => {
-      const k = process.env.GOOGLE_PRIVATE_KEY;
-      if (!k) return '';
-      if (k.includes('\n')) return k;
-      return k.replace(/\\n/g, '\n');
-    })()
-  },
+  credentials: (() => {
+    if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+      return JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+    }
+    const k = process.env.GOOGLE_PRIVATE_KEY || '';
+    return {
+      type: 'service_account',
+      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
+      private_key: k.includes('\n') ? k : k.replace(/\\n/g, '\n')
+    };
+  })(),
   scopes: [
     'https://www.googleapis.com/auth/analytics.readonly',
     'https://www.googleapis.com/auth/webmasters.readonly',
