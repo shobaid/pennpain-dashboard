@@ -32,16 +32,14 @@ const supabase = createClient(
 // ── Google auth (service account) ─────────────────────────────────────────
 const gauth = new GoogleAuth({
   credentials: {
+    type: 'service_account',
     client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
     private_key: (() => {
       const k = process.env.GOOGLE_PRIVATE_KEY;
       if (!k) return '';
       if (k.includes('\n')) return k;
-      if (k.includes('\\n')) return k.replace(/\\n/g, '\n');
-      // flat key with no line breaks at all — reconstruct PEM format
-      const body = k.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----/g, '').replace(/\s/g, '');
-      const lines = body.match(/.{1,64}/g) || [];
-      return `-----BEGIN PRIVATE KEY-----\n${lines.join('\n')}\n-----END PRIVATE KEY-----\n`;
+      return k.replace(/\\n/g, '\n');
     })()
   },
   scopes: [
@@ -317,11 +315,11 @@ app.get('/api/debug-key', (req, res) => {
   res.json({
     length: k.length,
     hasNewlines: k.includes('\n'),
-    hasEscaped: k.includes('\\n'),
+    lineCount: k.split('\n').length,
     start: k.slice(0, 60),
     end: k.slice(-60),
-    lineCount: k.split('\n').length,
-    email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '(not set)'
+    email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '(not set)',
+    key_id: process.env.GOOGLE_PRIVATE_KEY_ID || '(not set)'
   });
 });
 
